@@ -1,149 +1,249 @@
-/*
- * InternalClockSync.ino
- * example code illustrating time synced from a DCF77 receiver
- * Thijs Elenbaas, 2012-2017
- * This example code is in the public domain.
 
-  This example shows how to fetch a DCF77 time and synchronize
-  the internal clock. In order for this example to give clear output,
-  make sure that you disable logging  from the DCF library. You can
-  do this by commenting out   #define VERBOSE_DEBUG 1   in Utils.cpp.
+#include <Bounce2.h>
 
-  NOTE: If you used a package manager to download the DCF77 library,
-  make sure have also fetched these libraries:
+#define CLK_PIN 2           // rotary encoder clock pin
+#define SW_PIN 3            // rotary encoder switch pin
+#define DT_PIN 4            // rotary endoder data pin
+#define RELAY_PIN 5         // trigger relay pin
+#define POWER_CHECK_PIN 6   // checking there is power supply
 
- * Time
+// system time data
+int year = 24;
+int month = 1;
+int day = 1;
+int hour = 0;
+int minute = 0;
+int second = 0;
 
- */
+// tower time
+int towerHour = 0;
+int towerMinute = 0;
 
-#include "DCF77.h"
-#include "TimeLib.h"
-#include <Wire.h>
-#include <Adafruit_GFX.h>
-#include <Adafruit_SSD1306.h>
+int lastTemp = 0;
+int minTemp = 999;
+int maxTemp = -999;
+String minTempDate = "";
+String maxTempDate = "";
 
-#define DCF_PIN 5         // Connection pin to DCF 77 device
-#define DCF_INTERRUPT 0   // Interrupt number associated with pin
-#define CONFIG_PIN 3      // Configuration switch pin
-#define HOUR_MINUTE_PIN 4 // switch between hours or minutes setup
-#define SCK_PIN A5        // Clock pin for OLED screen
-#define SCA_PIN A4        // Data pin for OLED screen
-#define SCREEN_WIDTH 128  // OLED display width,  in pixels
-#define SCREEN_HEIGHT 64  // OLED display height, in pixels
-#define OLED_ADDRESS 0x3C // address of OLED screen
-#define UP_PIN 2          // Connection pin to up button to increment minute, hours
-#define DOWN_PIN 3        // Connection pin to down button to decrement minute, hours
-#define RELAY_PIN 6       // pin to trigger the relay
-#define POWER_CHECK_PIN 7 // pin to check if power supply in on
-#define RELAY_DELAY 200   // how long the relay is open
+Bounce debouncer = Bounce(); // Create a Bounce object
+const int NUM_OF_PAGES = 8;
+String screenPages[NUM_OF_PAGES] = ["sysTime", "sysDate", "towerTime", "temp", "min-temp", "max-temp", "delay", "power"];
+int currentPageIndex = 0; 
+bool editMode = false;
+int editStep = 1;
 
-time_t towerTime;
-time_t DCFtime;
-DCF77 DCF = DCF77(DCF_PIN, DCF_INTERRUPT);
-bool configMode = false;
-int configMinutes = 0;
-bool towerTimeInitialized = false;
-bool DCFTimeInitialized = false;
-
-// declare an SSD1306 display object connected to I2C
-Adafruit_SSD1306 oled(SCREEN_WIDTH, SCREEN_HEIGHT, &Wire, -1);
+int delay = 500;
 
 // run the controller setup
-void setup()
-{
-  // initialize all times to 00:00:00 01.01.2000
-  setTime(0, 0, 0, 0, 0, 2000);
-  towerTime = setTime(0, 0, 0, 0, 0, 2000);
-  DCFtime = setTime(0, 0, 0, 0, 0, 2000);
-
-  Serial.begin(9600);
-  DCF.Start();
-  Serial.println("Waiting for DCF77 time ... ");
-  Serial.println("It will take at least 2 minutes until a first update can be processed.");
-  pinMode(UP_PIN, INPUT_PULLUP);   // Set up pin as input with internal pull-up resistor
-  pinMode(DOWN_PIN, INPUT_PULLUP); // Set up pin as input with internal pull-up resistor
+void setup(){
+  pinMode(CLK_PIN, INPUT);
+  pinMode(DT_PIN, INPUT);
+  pinMode(SW_PIN, INPUT_PULLUP);
   pinMode(RELAY_PIN, OUTPUT);
   pinMode(POWER_CHECK_PIN, INPUT);
-  attachInterrupt(digitalPinToInterrupt(UP_PIN), upChange, FALLING);     // Attach the interrupt
-  attachInterrupt(digitalPinToInterrupt(DOWN_PIN), downChange, FALLING); // Attach the interrupt
-  initializeOledDisplay();
+  debouncer.attach(SW_PIN); // Attach the button pin
+  debouncer.interval(20);   // Set debounce interval (in milliseconds)
+  attachInterrupt(digitalPinToInterrupt(CLK_PIN), encoderRotated, RISING);
+  attachInterrupt(digitalPinToInterrupt(SW_PIN),  encoderPressed, RISING);
+  Serial.begin(9600);
 }
 
 // run the controller loop
-void loop()
-{
-  int configMode = digitalRead(CONFIG_PIN);
-  configMode ? runConfigurationMode() : runNormalOperation();
-  checkNewDCFTimeAvailable();
+void loop(){
+  debouncer.update(); // Update the debouncer
+  // Read debounced button state
+  if (debouncer.fell()) {
+      Serial.println("Button pressed!");
+  }
+  if (editMode){
+    updateDisplay();
+  }
+  else{
+    updateTowerClock();
+    delay(1000);
+  }
+}
+
+void encoderRotated(){
+  int change = 0;
+  int dtState = digitalRead(DT_PIN);
+  if (dtState == HIGH) {
+      change = 1; //rotated clockwise
+  } else {
+      change = -1; // rotated anticlockwise
+  }
+  if (editMode){
+    String currentPage = screenPages[currentPageIndex];
+    if (currentPage=="sysTime"){
+      if (editStep==1){
+        hour=hour+change;
+        if (hour>23){
+          hour = 0;
+        }
+        else if (hour<0){
+          hour = 23;
+        }
+      }
+      else if (editStep==2){
+        minute=minute+change;
+        if (minute>59){
+          minute = 0;
+        }
+        else if (minute<0){
+          minute = 59;
+        }
+      }
+    }
+    else if (currentPage=="sysDate"){
+      if (editStep==1){
+        day=day+change;
+        if (day>31){
+          day = 0;
+        }
+        else if (day<1){
+          day = 31;
+        }
+      }
+      else if (editStep==2){
+        month=month+change;
+        if (month>12){
+          month = 1;
+        }
+        else if (month<1){
+          month = 12;
+        }
+      }
+      else if (editStep==3){
+        year=year+change;
+        if (year>99){
+          year = 0;
+        }
+        else if (year<0){
+          year = 99;
+        }
+      }
+    }
+    else if (currentPage=="towerTime"){
+      if (editStep==1){
+        towerHour=towerHour+change;
+        if (towerHour>11){
+          towerHour = 0;
+        }
+        else if (towerHour<0){
+          towerHour = 11;
+        }
+      }
+      else if (editStep==2){
+        towerMinute=towerMinute+change;
+        if (towerMinute>59){
+          towerMinute = 0;
+        }
+        else if (towerMinute<0){
+          towerMinute = 59;
+        }
+      }
+    }
+    else if (currentPage=="delay"){
+      delay=delay+change;
+      if (delay>4999){
+        delay = 0;
+      }
+      else if (delay<0){
+        delay = 4999;
+      }
+    }
+  }
+  else{
+    changeScreen(change);
+  }
+}
+
+void changeScreen(int change){
+  currentPageIndex = currentPageIndex + change;
+  if (currentPageIndex<0){
+    currentPageIndex = NUM_OF_PAGES - 1;
+  }
+  else if (currentPageIndex>=NUM_OF_PAGES){
+    currentPageIndex = 0;
+  }
+}
+
+void encoderPressed(){
+  debouncer.update(); // Update the debouncer on interrupt
+  Serial.println("Encoder pressed ... ");
+  if (editMode){
+    editStep++;
+    String currentPage = screenPages[currentPageIndex];
+    if (currentPage=="sysTime"){
+      if (editStep == 3){
+        rtc.setTime();
+        exitEditMode();
+      }
+    }
+    else if (currentPage=="sysDate"){
+      if (editStep == 3){
+        rtc.setDate();
+        exitEditMode();
+      }
+    }
+    else if (currentPage=="towerTime"){
+      if (editStep == 3){
+        exitEditMode();
+      }
+    }
+    else if (currentPage=="delay"){
+      exitEditMode();
+    }
+  }
+  else {
+    editMode = true;
+    editStep = 1;
+  }
+}
+
+void exitEditMode(){
+  editMode=false;
+  editStep = 1;
   updateDisplay();
 }
 
-// initialize oled screen at startup
-void initializeOledDisplay()
-{
-  // initialize OLED display with address 0x3C for 128x64
-  if (!oled.begin(SSD1306_SWITCHCAPVCC, OLED_ADDRESS))
+void updateTowerClock(){
+  checkTemperature();
+  int currentDayMinutes = getSystemMinutes();   // using system time - get number of minutes in day for 12h format
+  int towerDayMinutes = getTowerMinutes();      // using tower time - get number of minutes in day  of tower time for 12h format
+  // calculate minutes diff between controller time and tower time
+  int minutesDiff = currentDayMinutes - towerDayMinutes;
+  // minutesDiff > 0 curent time is ahead of tower time - try to catch up, but only if current time is less then 6 hours ahead, otherwise wait
+  int sixHoursDiff = 6 * 60;
+  if (minutesDiff > 0 && minutesDiff < sixHoursDiff)
   {
-    Serial.println(F("SSD1306 allocation failed"));
-    while (true)
-      ;
-  }
-  delay(2000);         // wait for initializing
-  oled.clearDisplay(); // clear display
-}
-
-// user switched to configuration mode to setup tower time
-runConfigurationMode()
-{
-  configMode = true;
-}
-
-// running normal loop operation
-void runNormalOperation()
-{
-  if (configMode)
-  {
-    // just switched from config mode
-    // initialize some variables
-    towerTimeInitialized = true;
-  }
-  configMode = false;
-  // check if we need to increment tower time
-  checkMinuteIncremented();
-}
-
-// check we need to increment tower time
-void checkMinuteIncremented()
-{
-  // avoid turning the clock until tower clock and DCF time initialized
-  if (towerTimeInitialized && DCFTimeInitialized)
-  {
-    int currentDayMinutes = getDayMinutes();        // using system time - get number of minutes in day for 12h format
-    int towerDayMinutes = getDayMinutes(towerTime); // using tower time - get number of minutes in day  of tower time for 12h format
-    // calculate minutes diff between controller time and tower time
-    int minutesDiff = currentDayMinutes - towerDayMinutes;
-    // minutesDiff > 0 curent time is ahead of tower time - try to catch up, but only if current time is less then 6 hours ahead, otherwise wait
-    int sixHoursDiff = 6 * 60;
-    if (minutesDiff > 0 && minutesDiff < sixHoursDiff)
-    {
-      // need to turn the clock
-      if (turnTheClock())
-      {
-        //
-      }
+    // need to turn the clock
+    if (turnTheClock()){
+      //
     }
+  }
+  updateDisplay();
+}
+
+void checkTemperature(){
+  lastTemp = rtc.getTemperature();
+  if (lastTemp>maxTemp){
+    maxTemp = lastTemp;
+    maxTempDate = getFormatedDate(year, month, day)+" "+getFormatedShortTime(hour, minute);
+  }
+  if (lastTemp<minTemp){
+    minTemp = lastTemp;
+    minTempDate = getFormatedDate(year, month, day)+" "+getFormatedShortTime(hour, minute);
   }
 }
 
 // try to turn the clock on tower
-bool turnTheClock()
-{
+bool turnTheClock(){
   // check we have power supply and not running on battery - when there is no power we can not run the motor
-  if (isGridPowerOn())
-  {
+  if (isGridPowerOn()){
     // open relay
     digitalWrite(RELAY_PIN, HIGH);
-    delay(RELAY_DELAY);
+    delay(delay);
     // close relay
     digitalWrite(RELAY_PIN, LOW);
     // increment the tower time
@@ -154,142 +254,137 @@ bool turnTheClock()
 }
 
 // increment one minute of tower clock
-incrementTowerClock()
-{
-  // get the current hour and minute on the tower
-  int currentHour = hour(towerTime);
-  int currentMinutes = minute(towerTime);
+incrementTowerClock(){
   // increment for 1 minute
-  currentMinutes = currentMinutes + 1;
+  towerMinute = towerMinute + 1;
   // check there is no overflow
-  if (currentMinutes == 60)
+  if (towerMinute == 60)
   {
-    currentHour = currentHour + 1;
-    currentMinutes = 0;
-    if (currentHour == 24)
+    towerHour = towerHour + 1;
+    towerMinute = 0;
+    if (towerHour == 12)
     {
-      currentHour = 0
+      towerHour = 0
     }
   }
-  // set new tower time
-  towerTime = setTime(currentHour, currentMinutes, second(0), day(1), month(1), year(2000));
 }
 
 // function to check if we have power supply - reading pin value used to detect power supply
-bool isGridPowerOn()
-{
+bool isGridPowerOn(){
   int powerOn = digitalRead(POWER_CHECK_PIN);
   return powerOn == HIGH ? true : false;
 }
 
 // get number of minutes in a day by using only 12h format - because on tower we have only 12 hours
-int getDayMinutes(time_t inputTime)
-{
-  int currentHour = hour(inputTime);
-  int currentMinute = minute(inputTime);
-  currentHour = currentHour % 12; // if hour is in 24h format is the same for tower clock to use 12 hour format
-  return currentDayMinutes = currentHour * 60 + currentMinute;
+int getSystemMinutes(){
+  int currentHour = hour % 12; // if hour is in 24h format is the same for tower clock to use 12 hour format
+  return currentDayMinutes = currentHour * 60 + minute;
 }
 
-// check if there is new DCF time available
-void checkNewDCFTimeAvailable()
-{
-  time_t newDCFtime = DCF.getTime(); // Check if new DCF77 time is available
-  if (newDCFtime != 0)
-  {
-    Serial.println("Time is updated");
-    DCFtime = newDCFtime;
-    setTime(DCFtime);
-    DCFTimeInitialized = true; // until first DCF time not initialized prevent rotating the clock
-  }
+int getTowerMinutes(){
+  int currentHour = towerHour % 12; // if hour is in 24h format is the same for tower clock to use 12 hour format
+  return currentDayMinutes = currentHour * 60 + towerMinute;
 }
 
-// update the Oled screen with all the data
-void updateDisplay()
-{
-  oled.clearDisplay(); // clear OLED display
-  displaySystemTime();
-  displayDCFTime();
-  displayTowerTime();
-  displayPowerStatus();
-  displayConfigStatus();
-  oled.display();
-}
-
-// showing if controller is in config state
-void displayConfigStatus()
-{
-  oled.setTextSize(1);      // text size
-  oled.setTextColor(WHITE); // text color
-  oled.setCursor(80, 40);   // position to display
-  configMode ? oled.println("Config Mode: ON") : oled.println("Config Mode: OFF");
-}
-
-// display if we have power status
-void displayPowerStatus()
-{
-  oled.setTextSize(1);      // text size
-  oled.setTextColor(WHITE); // text color
-  oled.setCursor(80, 5);    // position to display
-  isGridPowerOn() ? oled.println("Power: ON") : oled.println("Power: OFF");
-}
-
-// display system time on display
-void displaySystemTime()
-{
-  oled.setTextSize(1);                              // text size
-  oled.setTextColor(WHITE);                         // text color
-  oled.setCursor(0, 10);                            // position to display
-  oled.println("System time:" + getFormatedTime()); // text to display
-}
-
-// display last DCF time
-void displayDCFTime()
-{
-  oled.setTextSize(1);      // text size
-  oled.setTextColor(WHITE); // text color
-  oled.setCursor(0, 20);    // position to display
-  if (DCFtime != 0)
-  {
-    oled.println("DCF time:" + getFormatedTime(DCFtime)); // text to display
-  }
-  else
-  {
-    oled.println("DCF time: Unknown"); // text to display
-  }
-}
-
-// display current tower time
-void displayTowerTime()
-{
-  oled.setTextSize(2);      // text size
-  oled.setTextColor(WHITE); // text color
-  oled.setCursor(0, 40);    // position to display
-
-  if (configMode)
-  {
-    oled.println("Set tower time:" + getFormatedShortTime(towerTime)); // text to display
-    configMinutes = digitalRead(HOUR_MINUTE_PIN);
-    if (configMinutes)
-    {
-      // waiting to adjust the minutes
-      display.drawLine(55, 60, 120, 64, WHITE); // Draw a line from (55,60) to (120,64)
+// update the LCD screen with all the data
+void updateDisplay(){
+  lcd.setCursor(0,0);
+  String currentPage = screenPages[currentPageIndex];
+  if (editMode==false){
+    if (currentPage=="sysTime"){
+      if (editStep==1){
+        lcd.println("Set System Hour");
+        lcd.setCursor(0,1);
+        lcd.println(hour);
+      }
+      else if (editStep==2){
+        lcd.println("Set System Min.");
+        lcd.setCursor(0,1);
+        lcd.println(minute);
+      }
     }
-    else
-    {
-      // waiting to adjust the hours
-      display.drawLine(5, 60, 50, 64, WHITE); // Draw a line from (5,60) to (50,64)
+    else if (currentPage=="sysDate"){
+      if (editStep==1){
+        lcd.println("Set System Day");
+        lcd.setCursor(0,1);
+        lcd.println(day);
+      }
+      else if (editStep==2){
+        lcd.println("Set System Month");
+        lcd.setCursor(0,1);
+        lcd.println(month);
+      }
+      else if (editStep==3){
+        lcd.println("Set System Year");
+        lcd.setCursor(0,1);
+        lcd.println(year);
+      }
+    }
+    else if (currentPage=="towerTime"){
+      if (editStep==1){
+        lcd.println("Set Tower Hour");
+        lcd.setCursor(0,1);
+        lcd.println(towerHour);
+      }
+      else if (editStep==2){
+        lcd.println("Set Tower Min.");
+        lcd.setCursor(0,1);
+        lcd.println(towerMinute);
+      }
+    }
+    else if (currentPage=="delay"){
+      lcd.println("Set Relay delay");
+      lcd.setCursor(0,1);
+      lcd.println(delay);
     }
   }
-  else
-  {
-    oled.println("Tower time:" + getFormatedShortTime(towerTime)); // text to display
+  else{
+    if (currentPage=="sysTime"){
+      lcd.println("System Time");
+      lcd.setCursor(0,1);
+      lcd.println(getFormatedTime(hour, minute, second));
+    }
+    else if (currentPage=="sysDate"){
+      lcd.println("System Date");
+      lcd.setCursor(0,1);
+      lcd.println(getFormatedDate(year, month, day));
+    }
+    else if (currentPage=="towerTime"){
+      lcd.println("Tower time");
+      lcd.setCursor(0,1);
+      lcd.println(getFormatedShortTime(towerHour, towerMinute));
+    }
+    else if (currentPage=="temp"){
+      lcd.println("Temperature");
+      lcd.setCursor(0,1);
+      lcd.println(lastTemp);
+    }
+    else if (currentPage=="minTemp"){
+      lcd.println("Min. T. "+minTemp);
+      lcd.setCursor(0,1);
+      lcd.println(minTempDate);
+    }
+    else if (currentPage=="maxTemp"){
+      lcd.println("Max. T. "+maxTemp);
+      lcd.setCursor(0,1);
+      lcd.println(maxTempDate);
+    }
+    else if (currentPage=="delay"){
+      lcd.println("Relay Delay");
+      lcd.setCursor(0,1);
+      lcd.println(delay);
+    }
+    else if (currentPage=="power"){
+      lcd.println("Power Supply");
+      lcd.setCursor(0,1);
+      lcd.println(isGridPowerOn()?"Ok":"Fail");
+    }
   }
+
 }
 
 // add leading zero if reguired and semicolon
-String printDigits(int digits, bool addSemicolumn)
-{
+String printDigits(int digits, bool addSemicolumn){
   // utility function for digital clock display: prints preceding colon and leading 0
   String output = "";
   if (addSemicolumn)
@@ -300,92 +395,17 @@ String printDigits(int digits, bool addSemicolumn)
   return output
 }
 
-// user incrementing hour or minute
-void upChange()
-{
-  if (configMode)
-  {
-    if (configMinutes)
-    {
-      // up one minute
-      // Get the current hour
-      int currentMinute = minute(towerTime);
-
-      // Increment the minutes
-      currentMinute = (currentMinute + 1) % 60;
-
-      // Update the time variable with the new hour
-      towerTime = setTime(hour(towerTime), currentMinute, second(0), day(1), month(1), year(2000));
-    }
-    else
-    {
-      // up one hour
-      // Get the current hour
-      int currentHour = hour(towerTime);
-
-      // Increment the hour (considering 24-hour format)
-      currentHour = (currentHour + 1) % 24;
-
-      // Update the time variable with the new hour
-      towerTime = setTime(currentHour, minute(towerTime), second(0), day(1), month(1), year(2000));
-    }
-  }
-}
-
-// user decrementing hour or minute
-void downChange()
-{
-  if (configMode)
-  {
-    if (configMinutes)
-    {
-      // down one minute
-      // Get the current hour
-      int currentMinute = minute(towerTime);
-
-      // Decrement the minutes
-      currentMinute = currentMinute - 1;
-      if (currentMinute < 0)
-      {
-        currentMinute = 59;
-      }
-
-      // Update the time variable with the new hour
-      towerTime = setTime(hour(towerTime), currentMinute, second(0), day(1), month(1), year(2000));
-    }
-    else
-    {
-      // down one hour
-      // Get the current hour
-      int currentHour = hour(towerTime);
-
-      // Decrement the hour (considering 24-hour format)
-      currentHour = currentHour - 1;
-      if (currentHour < 0)
-      {
-        currentHour = 23;
-      }
-
-      // Update the time variable with the new hour
-      towerTime = setTime(currentHour, minute(towerTime), second(0), day(1), month(1), year(2000));
-    }
-  }
-}
-
 // get formated input time with hours minutes and seconds
-String getFormatedTime(time_t inputTime)
-{
-  return printDigits(inputTime.hour(), false) + printDigits(inputTime.minute(), true) + printDigits(inputTime.second(), true);
+String getFormatedTime(int hour, int minute, int second){
+  return printDigits(hour, false) + printDigits(minute, true) + printDigits(second, true);
 }
 
-// get formated input date and time
-String getFormatedDateTime(time_t inputTime)
-{
-  return printDigits(inputTime.day(), false) + "." + printDigits(inputTime.month(), false) + "." + printDigits(inputTime.year(), false) + ' ' + getFormatedTime(inputTime);
+// get formated input date with year, month, day
+String getFormatedTime(int year, int month, int day){
+  return day+"."+month+".20"+ year;
 }
 
 // display only hours and minutes
-String getFormatedShortTime(time_t inputTime)
-{
-  return printDigits(inputTime.hour(), false) + printDigits(inputTime.minute(), true);
+String getFormatedShortTime(int hour, int minute){
+  return printDigits(hour, false) + printDigits(minute, true);
 }
