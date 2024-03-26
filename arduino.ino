@@ -43,7 +43,7 @@ String minTempDate = "";
 String maxTempDate = "";
 
 const int NUM_OF_PAGES = 8;
-String screenPages[NUM_OF_PAGES] = {"sysTime", "sysDate", "towerTime", "temp", "min-temp", "max-temp", "delay", "power"};
+String screenPages[NUM_OF_PAGES] = {"sysTime", "sysDate", "towerTime", "temp", "minTemp", "maxTemp", "delay", "power"};
 int currentPageIndex = 0; 
 bool editMode = false;
 int editStep = 1;
@@ -132,90 +132,91 @@ void encoderRotated(){
   }
   Serial.print("encoderRotated");
   Serial.println(change);
-  // if (editMode){
-  //   String currentPage = screenPages[currentPageIndex];
-  //   if (currentPage=="sysTime"){
-  //     if (editStep==1){
-  //       hour=hour+change;
-  //       if (hour>23){
-  //         hour = 0;
-  //       }
-  //       else if (hour<0){
-  //         hour = 23;
-  //       }
-  //     }
-  //     else if (editStep==2){
-  //       minute=minute+change;
-  //       if (minute>59){
-  //         minute = 0;
-  //       }
-  //       else if (minute<0){
-  //         minute = 59;
-  //       }
-  //     }
-  //   }
-  //   else if (currentPage=="sysDate"){
-  //     if (editStep==1){
-  //       day=day+change;
-  //       if (day>31){
-  //         day = 0;
-  //       }
-  //       else if (day<1){
-  //         day = 31;
-  //       }
-  //     }
-  //     else if (editStep==2){
-  //       month=month+change;
-  //       if (month>12){
-  //         month = 1;
-  //       }
-  //       else if (month<1){
-  //         month = 12;
-  //       }
-  //     }
-  //     else if (editStep==3){
-  //       year=year+change;
-  //       if (year>99){
-  //         year = 0;
-  //       }
-  //       else if (year<0){
-  //         year = 99;
-  //       }
-  //     }
-  //   }
-  //   else if (currentPage=="towerTime"){
-  //     if (editStep==1){
-  //       towerHour=towerHour+change;
-  //       if (towerHour>11){
-  //         towerHour = 0;
-  //       }
-  //       else if (towerHour<0){
-  //         towerHour = 11;
-  //       }
-  //     }
-  //     else if (editStep==2){
-  //       towerMinute=towerMinute+change;
-  //       if (towerMinute>59){
-  //         towerMinute = 0;
-  //       }
-  //       else if (towerMinute<0){
-  //         towerMinute = 59;
-  //       }
-  //     }
-  //   }
-  //   else if (currentPage=="delay"){
-  //     relayDelay=relayDelay+change;
-  //     if (delay>4999){
-  //       relayDelay = 0;
-  //     }
-  //     else if (relayDelay<0){
-  //       relayDelay = 4999;
-  //     }
-  //   }
-  // }
-  // else{
-  //   changeScreen(change);
-  // }
+  if (editMode){
+    String currentPage = screenPages[currentPageIndex];
+    if (currentPage=="sysTime"){
+      if (editStep==1){
+        hour=hour+change;
+        if (hour>23){
+          hour = 0;
+        }
+        else if (hour<0){
+          hour = 23;
+        }
+      }
+      else if (editStep==2){
+        minute=minute+change;
+        if (minute>59){
+          minute = 0;
+        }
+        else if (minute<0){
+          minute = 59;
+        }
+      }
+    }
+    else if (currentPage=="sysDate"){
+      if (editStep==1){
+        day=day+change;
+        if (day>31){
+          day = 0;
+        }
+        else if (day<1){
+          day = 31;
+        }
+      }
+      else if (editStep==2){
+        month=month+change;
+        if (month>12){
+          month = 1;
+        }
+        else if (month<1){
+          month = 12;
+        }
+      }
+      else if (editStep==3){
+        year=year+change;
+        if (year>99){
+          year = 0;
+        }
+        else if (year<0){
+          year = 99;
+        }
+      }
+    }
+    else if (currentPage=="towerTime"){
+      if (editStep==1){
+        towerHour=towerHour+change;
+        if (towerHour>11){
+          towerHour = 0;
+        }
+        else if (towerHour<0){
+          towerHour = 11;
+        }
+      }
+      else if (editStep==2){
+        towerMinute=towerMinute+change;
+        if (towerMinute>59){
+          towerMinute = 0;
+        }
+        else if (towerMinute<0){
+          towerMinute = 59;
+        }
+      }
+    }
+    else if (currentPage=="delay"){
+      relayDelay=relayDelay+change;
+      if (delay>4999){
+        relayDelay = 0;
+      }
+      else if (relayDelay<0){
+        relayDelay = 4999;
+      }
+    }
+  }
+  else{
+    changeScreen(change);
+  }
+  updateDisplay();
 }
 
 void changeScreen(int change){
@@ -260,9 +261,11 @@ void encoderPressed(){
     }
   }
   else {
+    Serial.println("Edit mode enter");
     editMode = true;
     editStep = 1;
   }
+  updateDisplay();
 }
 
 void exitEditMode(){
@@ -276,7 +279,13 @@ void updateDisplay(){
   lcd.clear();
   lcd.setCursor(0,0);
   String currentPage = screenPages[currentPageIndex];
-  if (editMode==false){
+  Serial.print("updateDisplay Edit mode=");
+  Serial.print(editMode);
+  Serial.print(" curent page=");
+  Serial.print(currentPage);
+  Serial.print(" step=");
+  Serial.print(editStep);
+  if (editMode==true){
     if (currentPage=="sysTime"){
       if (editStep==1){
         lcd.println("Set System Hour");
