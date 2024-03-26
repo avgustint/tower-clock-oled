@@ -395,7 +395,7 @@ void updateDisplay() {
     } else if (currentPage == "sysDate") {
       lcd.print("System Date");
       lcd.setCursor(0, 1);
-      lcd.print(getFormatedDate(year, month, day));
+      lcd.print(getFormatedDate(year, month, day)+" Day:"+String(dayOfWeek));
     } else if (currentPage == "towerTime") {
       lcd.print("Tower time");
       lcd.setCursor(0, 1);
