@@ -1,28 +1,29 @@
-// now.pde
-// Prints a snapshot of the current date and time along with the UNIX time
-// Modified by Andy Wickert from the JeeLabs / Ladyada RTC library examples
-// 5/15/11
-
 #include <Wire.h>
 #include <DS3231.h>
 #include <LiquidCrystal.h>
 #include <Bounce2.h>
 
+// rotary encoder pins
 #define CLK_PIN 2           // rotary encoder clock pin
 #define SW_PIN 3            // rotary encoder switch pin
 #define DT_PIN 8            // rotary endoder data pin
 
-DS3231 myRTC2;
+// LCD display pins
+#define RS_PIN 12
+#define EN_PIN 11
+#define D4_PIN 7
+#define D5_PIN 6
+#define D6_PIN 5
+#define D7_PIN 4
+
+#define POWER_CHECK_PIN 9 // pin for checking power supply
+#define RELAY_PIN 10 //define pin to trigger the relay
+
+
+// variables
 bool century = false;
 bool h12Flag;
 bool pmFlag;
-
-// initialize the library by associating any needed LCD interface pin
-// with the arduino pin number it is connected to
-const int rs = 12, en = 11, d4 = 7, d5 = 6, d6 = 5, d7 = 4;
-LiquidCrystal lcd(rs, en, d4, d5, d6, d7);
-String SysDate;
-String SysTime;
 
 // system time data
 int year = 24;
@@ -31,24 +32,32 @@ int day = 1;
 int hour = 0;
 int minute = 0;
 int second = 0;
+int dayOfWeek = 1;
 
 // tower time
 int towerHour = 0;
 int towerMinute = 0;
 
+// temperature
 int lastTemp = 0;
 int minTemp = 999;
 int maxTemp = -999;
 String minTempDate = "";
 String maxTempDate = "";
 
+// app
 const int NUM_OF_PAGES = 8;
 String screenPages[NUM_OF_PAGES] = {"sysTime", "sysDate", "towerTime", "temp", "minTemp", "maxTemp", "delay", "power"};
 int currentPageIndex = 0; 
 bool editMode = false;
 int editStep = 1;
 
+// relay
 int relayDelay = 500;
+
+// initialize objects
+LiquidCrystal lcd(RS_PIN, EN_PIN, D4_PIN, D5_PIN, D6_PIN, D7_PIN);
+DS3231 myRTC;
 
 Bounce debouncerSwitch = Bounce(); // Create a Bounce object
 Bounce debouncerClk = Bounce(); // Create a Bounce object
@@ -56,6 +65,8 @@ Bounce debouncerClk = Bounce(); // Create a Bounce object
 void setup () {
     Serial.begin(57600);
     Wire.begin();
+    // set up the LCD's number of columns and rows:
+    lcd.begin(16, 2);
     pinMode(CLK_PIN, INPUT);
     pinMode(DT_PIN, INPUT);
     pinMode(SW_PIN, INPUT_PULLUP);
@@ -66,24 +77,23 @@ void setup () {
     
     delay(500);
     Serial.println("Nano Ready!");
-    // myRTC2.setClockMode(false);  // set to 12h
-    // myRTC2.setYear(24);
-    // myRTC2.setMonth(3);
-    // myRTC2.setDate(25);
-    // myRTC2.setDoW(1);
-    // myRTC2.setHour(17);
-    // myRTC2.setMinute(33);
-    // myRTC2.setSecond(0);
+    // myRTC.setClockMode(false);  // set to 12h
+    // myRTC.setYear(24);
+    // myRTC.setMonth(3);
+    // myRTC.setDate(25);
+    // myRTC.setDoW(1);
+    // myRTC.setHour(17);
+    // myRTC.setMinute(33);
+    // myRTC.setSecond(0);
     
-    // set up the LCD's number of columns and rows:
-    lcd.begin(16, 2);
+
     // Print a message to the LCD.
     lcd.print("Initializing...");
 }
 
 void loop () {
-    debouncerSwitch.update(); // Update the debouncer
-    debouncerClk.update();   
+  debouncerSwitch.update(); // Update the debouncer
+  debouncerClk.update();   
 
   // Read debounced button state
   if (debouncerSwitch.fell()) {
@@ -95,31 +105,66 @@ void loop () {
       encoderRotated();
   }
     
-    // if (editMode){
-    //   updateDisplay();
-    // }
-    // else{
-    //   updateTowerClock();
-    // }
-  //delay(100);
+  if (!editMode){
+    updateTowerClock();
+  }
 }
 
 void updateTowerClock(){
-  // checkTemperature();
-  // int currentDayMinutes = getSystemMinutes();   // using system time - get number of minutes in day for 12h format
-  // int towerDayMinutes = getTowerMinutes();      // using tower time - get number of minutes in day  of tower time for 12h format
-  // // calculate minutes diff between controller time and tower time
-  // int minutesDiff = currentDayMinutes - towerDayMinutes;
-  // // minutesDiff > 0 curent time is ahead of tower time - try to catch up, but only if current time is less then 6 hours ahead, otherwise wait
-  // int sixHoursDiff = 6 * 60;
-  // if (minutesDiff > 0 && minutesDiff < sixHoursDiff)
-  // {
-  //   // need to turn the clock
-  //   if (turnTheClock()){
-  //     //
-  //   }
-  // }
-  updateDisplay();
+  checkTemperature();
+  int currentDayMinutes = getSystemMinutes();   // using system time - get number of minutes in day for 12h format
+  int towerDayMinutes = getTowerMinutes();      // using tower time - get number of minutes in day  of tower time for 12h format
+  // calculate minutes diff between controller time and tower time
+  int minutesDiff = currentDayMinutes - towerDayMinutes;
+  // minutesDiff > 0 curent time is ahead of tower time - try to catch up, but only if current time is less then 6 hours ahead, otherwise wait
+  int sixHoursDiff = 6 * 60;
+  if (minutesDiff > 0 && minutesDiff < sixHoursDiff){
+    // need to turn the clock
+    turnTheClock();
+    updateDisplay();
+  }
+  else{
+    // to do - update only on every second
+  }
+}
+
+// try to turn the clock on tower
+bool turnTheClock(){
+  // check we have power supply and not running on battery - when there is no power we can not run the motor
+  if (isGridPowerOn()){
+    // open relay
+    digitalWrite(RELAY_PIN, HIGH);
+    delay(relayDelay);
+    // close relay
+    digitalWrite(RELAY_PIN, LOW);
+    // increment the tower time
+    incrementTowerClock();
+    delay(5000); // do not trigger the relay for next 5 seconds - to not rotate too quickly on hour change
+    return true;
+  }
+  return false;
+}
+
+// increment one minute of tower clock
+incrementTowerClock(){
+  // increment for 1 minute
+  towerMinute = towerMinute + 1;
+  // check there is no overflow
+  if (towerMinute == 60)
+  {
+    towerHour = towerHour + 1;
+    towerMinute = 0;
+    if (towerHour == 12)
+    {
+      towerHour = 0
+    }
+  }
+}
+
+// function to check if we have power supply - reading pin value used to detect power supply
+bool isGridPowerOn(){
+  int powerOn = digitalRead(POWER_CHECK_PIN);
+  return powerOn == HIGH ? true : false;
 }
 
 void encoderRotated(){
@@ -182,6 +227,15 @@ void encoderRotated(){
           year = 99;
         }
       }
+      else if (editStep==4){
+        dayOfWeek=dayOfWeek+change;
+        if (dayOfWeek>7){
+          dayOfWeek = 1;
+        }
+        else if (dayOfWeek<1){
+          dayOfWeek = 7;
+        }
+      }
     }
     else if (currentPage=="towerTime"){
       if (editStep==1){
@@ -236,18 +290,18 @@ void encoderPressed(){
     String currentPage = screenPages[currentPageIndex];
     if (currentPage=="sysTime"){
       if (editStep == 3){
-        myRTC2.setHour(hour);
-        myRTC2.setMinute(minute);
-        myRTC2.setSecond(0);
+        myRTC.setHour(hour);
+        myRTC.setMinute(minute);
+        myRTC.setSecond(0);
         exitEditMode();
       }
     }
     else if (currentPage=="sysDate"){
-      if (editStep == 3){
-        myRTC2.setYear(year);
-        myRTC2.setMonth(month);
-        myRTC2.setDate(day);
-        myRTC2.setDoW(1);
+      if (editStep == 4){
+        myRTC.setYear(year);
+        myRTC.setMonth(month);
+        myRTC.setDate(day);
+        myRTC.setDoW(dayOfWeek);
         exitEditMode();
       }
     }
@@ -271,7 +325,6 @@ void encoderPressed(){
 void exitEditMode(){
   editMode=false;
   editStep = 1;
-  updateDisplay();
 }
 
 // update the LCD screen with all the data
@@ -314,6 +367,11 @@ void updateDisplay(){
         lcd.setCursor(0,1);
         lcd.println(year);
       }
+      else if (editStep==4){
+        lcd.println("Set Day Of Week");
+        lcd.setCursor(0,1);
+        lcd.println(dayOfWeek);
+      }
     }
     else if (currentPage=="towerTime"){
       if (editStep==1){
@@ -355,12 +413,12 @@ void updateDisplay(){
       lcd.println(lastTemp);
     }
     else if (currentPage=="minTemp"){
-      lcd.println("Min. T. "+minTemp);
+      lcd.println("Min. T. "+String(minTemp));
       lcd.setCursor(0,1);
       lcd.println(minTempDate);
     }
     else if (currentPage=="maxTemp"){
-      lcd.println("Max. T. "+maxTemp);
+      lcd.println("Max. T. "+String(maxTemp));
       lcd.setCursor(0,1);
       lcd.println(maxTempDate);
     }
@@ -370,9 +428,9 @@ void updateDisplay(){
       lcd.println(relayDelay);
     }
     else if (currentPage=="power"){
-      // lcd.println("Power Supply");
-      // lcd.setCursor(0,1);
-      // lcd.println(isGridPowerOn()?"Ok":"Fail");
+      lcd.println("Power Supply");
+      lcd.setCursor(0,1);
+      lcd.println(isGridPowerOn()?"Ok":"Fail");
     }
   }
 
@@ -403,4 +461,16 @@ String getFormatedDate(int year, int month, int day){
 // display only hours and minutes
 String getFormatedShortTime(int hour, int minute){
   return printDigits(hour, false) + printDigits(minute, true);
+}
+
+void checkTemperature(){
+  lastTemp = myRTC.getTemperature();
+  if (lastTemp>maxTemp){
+    maxTemp = lastTemp;
+    maxTempDate = getFormatedDate(year, month, day)+" "+getFormatedShortTime(hour, minute);
+  }
+  if (lastTemp<minTemp){
+    minTemp = lastTemp;
+    minTempDate = getFormatedDate(year, month, day)+" "+getFormatedShortTime(hour, minute);
+  }
 }
