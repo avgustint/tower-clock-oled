@@ -1,3 +1,15 @@
+/*
+  Control church tower clock with arduino microcontroller using Real Time Clock (RTC) Module - always try to syncronize tower clock time with controller system time
+  Pause tower clock if there is no grid power that can rotate the motor
+  Taking into consideration also rules for Daylight Saving Time (DST) in Europe 
+  Using rotary encoder to setup all variables
+  Display program settings and date time on LCD display with auto turn on/off backlight
+  Using Lithium battery as a controller UPS
+  Reading and recording min/max temperature from RTC module 
+
+  Avgustin Tomsic
+  March 2024 
+*/
 #include <Wire.h>
 #include <DS3231.h>
 #include <LiquidCrystal.h>
@@ -19,7 +31,7 @@
 
 // other pins
 #define POWER_CHECK_PIN 10  // pin for checking power supply
-#define RELAY_PIN 9       //define pin to trigger the relay
+#define RELAY_PIN 9         //define pin to trigger the relay
 
 
 // variables
@@ -51,10 +63,10 @@ String maxTempDate = "";
 // app
 const int NUM_OF_PAGES = 8;
 String screenPages[NUM_OF_PAGES] = { "sysTime", "sysDate", "towerTime", "delay", "temp", "minTemp", "maxTemp", "power" };
-int currentPageIndex = 0;     // current selected page to show on LCD
-bool editMode = false;        // are we in edit mode flag
-int editStep = 1;             // current step of configuration for each screen
-String lastTimeUpdate = "";   // storing last updated time on LCD - to not refresh LCD to often
+int currentPageIndex = 0;             // current selected page to show on LCD
+bool editMode = false;                // are we in edit mode flag
+int editStep = 1;                     // current step of configuration for each screen
+String lastTimeUpdate = "";           // storing last updated time on LCD - to not refresh LCD to often
 unsigned long lastBacklightOpen = 0;  // stored time when LCD backlight was opened   
 int backlightDuration = 30000;        // the duration of LCD backlight turn on time in miliseconds (30s)
 
@@ -71,8 +83,8 @@ Bounce debouncerClk = Bounce();     // Create a Bounce object to prevent any gli
 // initialize the controller
 void setup() {
   Wire.begin();
-  // set up the LCD's number of columns and rows:
-  lcd.begin(16, 2);
+  lcd.begin(16, 2);               // set up the LCD's number of columns and rows:
+  
   // setup controller pins
   pinMode(CLK_PIN, INPUT);
   pinMode(DT_PIN, INPUT);
@@ -84,10 +96,9 @@ void setup() {
   debouncerSwitch.interval(100);   // Set debounce interval (in milliseconds)
   debouncerClk.attach(CLK_PIN);    // Attach to the rotary encoder clock pin
   debouncerClk.interval(2);        // Set debounce interval (in milliseconds)
-  // turn off the relay
-  digitalWrite(RELAY_PIN, HIGH);
-  // read current time from RTC module
-  getCurrentTime();
+  digitalWrite(RELAY_PIN, HIGH);   // turn off the relay
+  getCurrentTime();                // read current time from RTC module
+
   // initialize tower clock on same as current time  - will be set correcty in edit mode - here just to prevent rotating the tower clock
   towerHour = hour;
   towerMinute = minute;
@@ -110,15 +121,11 @@ void loop() {
   }
 
   if (!editMode) {
-    // read current time from RTC module 
-    getCurrentTime();
-    // check need to update the LCD screen
-    updateScreenDateTime(); 
-    // check need to update tower clock
-    updateTowerClock();
+    getCurrentTime();         // read current time from RTC module 
+    updateScreenDateTime();   // check need to update the LCD screen
+    updateTowerClock();       // check need to update tower clock
   }
-  // check need to turn off the LCD backlight
-  checkLcdBacklight();
+  checkLcdBacklight();        // check need to turn off the LCD backlight
 }
 
 // read the current time from the RTC module
@@ -187,19 +194,13 @@ void updateTowerClock() {
 bool turnTheClock() {
   // check we have power supply and not running on battery - when there is no power we can not run the motor
   if (isGridPowerOn()) {
-    // show message on lcd screen that motor is operation
-    showOperationMessage();
-    // open relay
-    digitalWrite(RELAY_PIN, LOW);
-    // keep relay open for the delay setup in settings
-    delay(relayDelay);
-    // close relay
-    digitalWrite(RELAY_PIN, HIGH);
-    // increment the tower time
-    incrementTowerClock();
-    delay(5000);  // do not trigger the relay for next 5 seconds - to not rotate too quickly when hour change on DST
-    // update the display with new tower time and removing operational message
-    updateDisplay();
+    showOperationMessage();           // show message on lcd screen that motor is operation
+    digitalWrite(RELAY_PIN, LOW);     // open relay
+    delay(relayDelay);                // keep relay open for the delay setup in settings
+    digitalWrite(RELAY_PIN, HIGH);    // close relay
+    incrementTowerClock();            // increment the tower time
+    delay(5000);                      // do not trigger the relay for next 5 seconds - to not rotate too quickly when hour change on DST also motor is rotating longer then relay is open - motor is having own relay to turn off when rotated enough 
+    updateDisplay();                  // update the display with new tower time and removing operational message
     return true;
   }
   return false;
