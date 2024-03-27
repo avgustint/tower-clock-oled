@@ -189,7 +189,7 @@ void incrementTowerClock() {
   if (towerMinute == 60) {
     towerHour = towerHour + 1;
     towerMinute = 0;
-    if (towerHour == 12) {
+    if (towerHour >= 24) {
       towerHour = 0;
     }
   }
