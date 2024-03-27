@@ -260,10 +260,10 @@ void encoderRotated() {
     } else if (currentPage == "towerTime") {
       if (editStep == 1) {
         towerHour = towerHour + change;
-        if (towerHour > 11) {
+        if (towerHour > 23) {
           towerHour = 0;
         } else if (towerHour < 0) {
-          towerHour = 11;
+          towerHour = 23;
         }
       } else if (editStep == 2) {
         towerMinute = towerMinute + change;
