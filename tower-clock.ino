@@ -1,3 +1,15 @@
+/*
+  Control church tower clock with arduino microcontroller using Real Time Clock (RTC) Module - always try to syncronize tower clock time with controller system time
+  Pause tower clock if there is no grid power that can rotate the motor
+  Taking into consideration also rules for Daylight Saving Time (DST) in Europe 
+  Using rotary encoder to setup all variables
+  Display program settings and date time on LCD display with auto turn on/off backlight
+  Using Lithium battery as a controller UPS
+  Reading and recording min/max temperature from RTC module 
+
+  Avgustin Tomsic
+  March 2024 
+*/
 #include <Wire.h>
 #include <DS3231.h>
 #include <LiquidCrystal.h>
@@ -19,7 +31,7 @@
 
 // other pins
 #define POWER_CHECK_PIN 10  // pin for checking power supply
-#define RELAY_PIN 9       //define pin to trigger the relay
+#define RELAY_PIN 9         //define pin to trigger the relay
 
 
 // variables
@@ -197,7 +209,7 @@ bool turnTheClock() {
     digitalWrite(RELAY_PIN, HIGH);
     // increment the tower time
     incrementTowerClock();
-    delay(5000);  // do not trigger the relay for next 5 seconds - to not rotate too quickly when hour change on DST
+    delay(5000);  // do not trigger the relay for next 5 seconds - to not rotate too quickly when hour change on DST also motor is rotating longer then relay is open - motor is having own relay to turn off when rotated enough 
     // update the display with new tower time and removing operational message
     updateDisplay();
     return true;
