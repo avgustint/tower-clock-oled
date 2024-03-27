@@ -532,7 +532,7 @@ void updateDisplay() {
 
 // format temperature with degrees symbol
 String getTemp(int temp){
-  return String(temp)+(char)223+"C"
+  return String(temp)+(char)223+"C";
 }
 
 // get day of week names from index 1-Starting on Monday and 7 as Sunday
