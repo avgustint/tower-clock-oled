@@ -48,12 +48,13 @@ String maxTempDate = "";
 
 // app
 const int NUM_OF_PAGES = 8;
-String screenPages[NUM_OF_PAGES] = { "sysTime", "sysDate", "towerTime", "temp", "minTemp", "maxTemp", "delay", "power" };
+String screenPages[NUM_OF_PAGES] = { "sysTime", "sysDate", "towerTime", "delay", "temp", "minTemp", "maxTemp", "power" };
 int currentPageIndex = 0;
 bool editMode = false;
 int editStep = 1;
 String lastTimeUpdate = "";
 unsigned long lastBacklightOpen = 0;
+bool isSummerTime = false;
 
 // relay
 int relayDelay = 1500;
@@ -135,6 +136,26 @@ void getCurrentTime() {
   minute = myRTC.getMinute();
   second = myRTC.getSecond();
   dayOfWeek = myRTC.getDoW();
+  checkDaylightSavingChanges();
+}
+
+void checkDaylightSavingChanges(){
+  // check last Sunday in March or October and update the time accordingly
+  // earliest possible date in 25. MArch or October and latest 31. March or October
+  if (dayOfWeek==7 && day>=25 && (month==3 || month=10)){
+    if (month==3 && hour==2 && minute==0){
+      // moving hour forward on 02:00 to 03:00
+      hour=3;
+      myRTC.setHour(hour);
+      isSummerTime = true;
+    }
+    // moving hour backwards from 03:00 to 2:00 - do this only once otherwise will be in the loop
+    else if (month==10 && hour==3 && minute==0 && isSummerTime){
+      hour=2;
+      myRTC.setHour(hour);
+      isSummerTime = false;
+    }
+  }
 }
 
 void updateTowerClock() {
@@ -257,6 +278,9 @@ void encoderRotated() {
           dayOfWeek = 7;
         }
       }
+      else if (editStep == 5) {
+        isSummerTime = !isSummerTime;
+      }
     } else if (currentPage == "towerTime") {
       if (editStep == 1) {
         towerHour = towerHour + change;
@@ -304,29 +328,33 @@ void encoderPressed() {
     editStep++;
     if (currentPage == "sysTime") {
       if (editStep == 3) {
-        myRTC.setHour(hour);
-        myRTC.setMinute(minute);
-        myRTC.setSecond(0);
-        exitEditMode();
+        currentPageIndex = currentPageIndex+1;
+        editStep = 1; // moving to the date update
       }
     } else if (currentPage == "sysDate") {
-      if (editStep == 5) {
-        myRTC.setYear(year);
-        myRTC.setMonth(month);
-        myRTC.setDate(day);
-        myRTC.setDoW(dayOfWeek);
-        exitEditMode();
+      if (editStep == 6) {
+        currentPageIndex = currentPageIndex+1;
+        editStep = 1; // moving to the tower time setup
       }
     } else if (currentPage == "towerTime") {
       if (editStep == 3) {
-        exitEditMode();
+        currentPageIndex = currentPageIndex+1;
+        editStep = 1; // moving to the delay setup
       }
     } else if (currentPage == "delay") {
+      myRTC.setHour(hour);
+      myRTC.setMinute(minute);
+      myRTC.setSecond(0);
+      myRTC.setYear(year);
+      myRTC.setMonth(month);
+      myRTC.setDate(day);
+      myRTC.setDoW(dayOfWeek);
       exitEditMode();
     }
   } else {
     if (currentPage == "sysTime" || currentPage == "sysDate" || currentPage == "towerTime" || currentPage == "delay") {
       editMode = true;
+      currentPageIndex = 0; // go to the first screen to update all parameters
       editStep = 1;
     }
   }
@@ -370,7 +398,11 @@ void updateDisplay() {
       } else if (editStep == 4) {
         lcd.print("Set Day Of Week");
         lcd.setCursor(0, 1);
-        lcd.print(dayOfWeek);
+        lcd.print(getWeekDayName());
+      } else if (editStep == 5) {
+        lcd.print("Is Summer Time");
+        lcd.setCursor(0, 1);
+        lcd.print(isSummerTime?"Yes":"No");
       }
     } else if (currentPage == "towerTime") {
       if (editStep == 1) {
@@ -391,11 +423,11 @@ void updateDisplay() {
     if (currentPage == "sysTime") {
       lcd.print("System Time");
       lcd.setCursor(0, 1);
-      lcd.print(getFormatedTime(hour, minute, second));
+      lcd.print(getFormatedTime(hour, minute, second)+" "+(isSummerTime?"Summer":"Winter"));
     } else if (currentPage == "sysDate") {
       lcd.print("System Date");
       lcd.setCursor(0, 1);
-      lcd.print(getFormatedDate(year, month, day)+" Day:"+String(dayOfWeek));
+      lcd.print(getFormatedDate(year, month, day)+" "+getWeekDayName());
     } else if (currentPage == "towerTime") {
       lcd.print("Tower time");
       lcd.setCursor(0, 1);
@@ -421,6 +453,36 @@ void updateDisplay() {
       lcd.setCursor(0, 1);
       lcd.print(isGridPowerOn() ? "Ok" : "Fail");
     }
+  }
+}
+
+String getWeekDayName(){
+  switch (dayOfWeek) {
+    case 1:
+        return "Mon";
+        break;
+    case 2:
+        return "Tue";
+        break;
+    case 3:
+        return "Wed";
+        break;
+    case 4:
+        return "Thu";
+        break;
+    case 5:
+        return "Fri";
+        break;
+    case 6:
+        return "Sat";
+        break;
+    case 7:
+        return "Sun";
+        break;
+    // Add more cases for other days
+    default:
+        return "Invalid";
+        break;
   }
 }
 
