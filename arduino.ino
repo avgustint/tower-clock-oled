@@ -471,5 +471,9 @@ int getSystemMinutes() {
 
 int getTowerMinutes() {
   int currentHour = towerHour % 12;  // if hour is in 24h format is the same for tower clock to use 12 hour format
-  return currentHour * 60 + towerMinute;
+  int dayMinutes = currentHour * 60 + towerMinute;
+  if (dayMinutes==719){
+    dayMinutes = -1;
+  }
+  return dayMinutes;
 }
