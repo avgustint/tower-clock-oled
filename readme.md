@@ -10,4 +10,26 @@ Use of lithium battery as UPS controller. The controller is powered by a 5 V DC 
 
 The RTC module is temperature compensated. The RTC module reads and records the minimum/maximum temperature and displays it on LCD screen.
 
+## **Components**
+
+### Controller Arduino Nano
+![image](https://github.com/avgustint/tower-clock/assets/9412797/8fbae44a-66fd-4745-98ee-94f49e7eb06a)
+
+
+### Rechargeable Lithium Battery 
+![image](https://github.com/avgustint/tower-clock/assets/9412797/0f3e59af-5f53-4cb3-9975-40ea88144ab4)
+
+### Power Supply and Charging Controller
+![image](https://github.com/avgustint/tower-clock/assets/9412797/9fa9ace6-a631-413e-a117-079d3b30c8a3)
+
+### Real Time Clock Module
+![image](https://github.com/avgustint/tower-clock/assets/9412797/990adb97-49cd-43ab-b6b3-29cf0235794e)
+
+### Rotary Encoder with Press Button
+![image](https://github.com/avgustint/tower-clock/assets/9412797/0cd3fe18-62a0-431a-86cb-1cd6314a8132)
+
+### Relay Module
+![image](https://github.com/avgustint/tower-clock/assets/9412797/2f2f898b-8374-46ce-9868-71399b85e3fd)
+
+
 March 2024 
