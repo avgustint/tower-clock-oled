@@ -37,7 +37,8 @@ The RTC module is temperature compensated. The RTC module reads and records the 
 
 ## **Wiring**
 
-![image](https://github.com/avgustint/tower-clock/assets/9412797/c0770b2f-320c-4a17-bd86-41d03d64296d)
+![image](https://github.com/avgustint/tower-clock/assets/9412797/b6c0cce2-6dc1-4dd4-a7bc-2585dcd0d7f6)
+
 
 
 March 2024 
