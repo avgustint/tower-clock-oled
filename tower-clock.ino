@@ -1,5 +1,5 @@
 /*
-  Control church tower clock with arduino microcontroller using Real Time Clock (RTC) Module - always try to syncronize tower clock time with controller system time
+  Control church tower clock with arduino microcontroller using Real Time Clock (RTC) Module - always try to synchronize tower clock time with controller system time
   Pause tower clock if there is no grid power that can rotate the motor
   Taking into consideration also rules for Daylight Saving Time (DST) in Europe 
   Using rotary encoder to setup all variables
@@ -18,7 +18,7 @@
 // rotary encoder pins
 #define CLK_PIN 2  // rotary encoder clock pin
 #define SW_PIN 3   // rotary encoder switch pin
-#define DT_PIN 8   // rotary endoder data pin
+#define DT_PIN 8   // rotary encoder data pin
 
 // LCD display pins
 #define RS_PIN 12
@@ -27,11 +27,11 @@
 #define D5_PIN 6
 #define D6_PIN 5
 #define D7_PIN 4
-#define BACKLIGHT_PIN 0
+#define BACKLIGHT_PIN 9
 
 // other pins
-#define POWER_CHECK_PIN 10  // pin for checking power supply
-#define RELAY_PIN 9         //define pin to trigger the relay
+#define POWER_CHECK_PIN 10   // pin for checking power supply
+#define RELAY_PIN 14         //define pin to trigger the relay
 
 
 // variables
@@ -74,15 +74,15 @@ int backlightDuration = 30000;        // the duration of LCD backlight turn on t
 int relayDelay = 1500;
 
 // initialize objects
-LiquidCrystal lcd(RS_PIN, EN_PIN, D4_PIN, D5_PIN, D6_PIN, D7_PIN); // declare object for LCD display maniupulation
+LiquidCrystal lcd(RS_PIN, EN_PIN, D4_PIN, D5_PIN, D6_PIN, D7_PIN); // declare object for LCD display manipulation
 DS3231 myRTC;                                                      // object for getting and setting time in Real Time Clock module
 
 Bounce debouncerSwitch = Bounce();  // Create a Bounce object to prevent any glitches from rotary encoder switch
-Bounce debouncerClk = Bounce();     // Create a Bounce object to prevent any glicther from rotary encoder clock signal
+Bounce debouncerClk = Bounce();     // Create a Bounce object to prevent any glitches from rotary encoder clock signal
 
 // initialize the controller
 void setup() {
-  Wire.begin();
+  Wire.begin();                   // start I2C communication with RTC module
   lcd.begin(16, 2);               // set up the LCD's number of columns and rows:
   
   // setup controller pins
@@ -99,9 +99,10 @@ void setup() {
   digitalWrite(RELAY_PIN, HIGH);   // turn off the relay
   getCurrentTime();                // read current time from RTC module
 
-  // initialize tower clock on same as current time  - will be set correcty in edit mode - here just to prevent rotating the tower clock
+  // initialize tower clock on same as current time  - will be set correctly in edit mode - here just to prevent rotating the tower clock
   towerHour = hour;
   towerMinute = minute;
+  showBacklight();                 // turn the lcd backlight on
 }
 
 // main microcontroller loop
@@ -176,17 +177,14 @@ void checkDaylightSavingChanges(){
 
 // update the tower clock if minute incremented
 void updateTowerClock() {
-  int currentDayMinutes = getSystemMinutes();  // using system time - get number of minutes in day for 12h format
-  int towerDayMinutes = getTowerMinutes();     // using tower time - get number of minutes in day  of tower time for 12h format
-  // calculate minutes diff between controller time and tower time
-  int minutesDiff = currentDayMinutes - towerDayMinutes;
+  int currentDayMinutes = getSystemMinutes();             // using system time - get number of minutes in day for 12h format
+  int towerDayMinutes = getTowerMinutes();                // using tower time - get number of minutes in day  of tower time for 12h format
+  int minutesDiff = currentDayMinutes - towerDayMinutes;  // calculate minutes diff between controller time and tower time
   // minutesDiff > 0 curent time is ahead of tower time - try to catch up, but only if current time is less then 6 hours ahead, otherwise wait
   int sixHoursDiff = 6 * 60;
   if (minutesDiff > 0 && minutesDiff < sixHoursDiff) {
-    // need to turn the tower clock
-    turnTheClock();
-    // every minute read also RTC module temperature
-    checkTemperature();
+    turnTheClock();       // need to turn the tower clock
+    checkTemperature();   // every minute read also RTC module temperature
   } 
 }
 
@@ -220,7 +218,7 @@ void checkLcdBacklight(){
   }
 }
 
-// show message that motor in in the operation and rotationg the clock indicators
+// show message that motor in in the operation and rotating the clock indicators
 void showOperationMessage(){
   lcd.clear();
   lcd.setCursor(0, 0);
@@ -254,7 +252,7 @@ void encoderRotated() {
   int change = 0;
   int dtState = digitalRead(DT_PIN);
   if (dtState == HIGH) {
-    change = 1;  //rotated clockwise
+    change = 1;   //rotated clockwise
   } else {
     change = -1;  // rotated anticlockwise
   }
@@ -345,13 +343,11 @@ void encoderRotated() {
       }
     }
   } else {
-    // when not in edit mode, just show next/previous screen
-    changeScreen(change);
+    changeScreen(change);     // when not in edit mode, just show next/previous screen
   }
-  // update the lcd screen with latest values
-  updateDisplay();
-  // turn the lcd backlight on
-  showBacklight();
+  
+  updateDisplay();            // update the lcd screen with latest values
+  showBacklight();            // turn the lcd backlight on
 }
 
 // show next available screen depending the change direction
@@ -398,7 +394,7 @@ void encoderPressed() {
       myRTC.setMonth(month);
       myRTC.setDate(day);
       myRTC.setDoW(dayOfWeek);
-      exitEditMode(); //move to normal operationl mode
+      exitEditMode(); //move to normal operational mode
     }
   } else {
     // currently not in edit mode and button pressed - if we are on any of configurational screens the start edit mode procedure
@@ -408,8 +404,7 @@ void encoderPressed() {
       editStep = 1;
     }
   }
-  // update the LCD display with new values
-  updateDisplay();
+  updateDisplay();         // update the LCD display with new values
 }
 
 // user exited the the edit mode - reinitialize some variables
@@ -512,7 +507,7 @@ void updateDisplay() {
       lcd.setCursor(0, 1);
       lcd.print(minTempDate);
     } else if (currentPage == "maxTemp") {
-      // display maximu recorded temperature and date time that measured
+      // display maximum recorded temperature and date time that measured
       lcd.print("Max. T. " + getTemp(maxTemp));
       lcd.setCursor(0, 1);
       lcd.print(maxTempDate);
@@ -522,7 +517,7 @@ void updateDisplay() {
       lcd.setCursor(0, 1);
       lcd.print(relayDelay);
     } else if (currentPage == "power") {
-      // display if grid power suppy is working  
+      // display if grid power supply is working  
       lcd.print("Power Supply");
       lcd.setCursor(0, 1);
       lcd.print(isGridPowerOn() ? "Ok" : "Fail");
@@ -566,7 +561,7 @@ String getWeekDayName(){
   }
 }
 
-// add leading zero if reguired and semicolon
+// add leading zero if required and semicolon
 String printDigits(int digits, bool addSemicolumn) {
   // utility function for digital clock display: prints preceding colon and leading 0
   String output = "";
@@ -578,12 +573,12 @@ String printDigits(int digits, bool addSemicolumn) {
   return output;
 }
 
-// get formated input time with hours minutes and seconds
+// get formatted input time with hours minutes and seconds
 String getFormatedTime(int hour, int minute, int second) {
   return printDigits(hour, false) + printDigits(minute, true) + printDigits(second, true);
 }
 
-// get formated input date with year, month, day
+// get formatted input date with year, month, day
 String getFormatedDate(int year, int month, int day) {
   return String(day) + "." + String(month) + ".20" + String(year);
 }
@@ -593,7 +588,7 @@ String getFormatedShortTime(int hour, int minute) {
   return printDigits(hour, false) + printDigits(minute, true);
 }
 
-// read the current temerature from the RTC module
+// read the current temperature from the RTC module
 void checkTemperature() {
   // read current temperature
   lastTemp = myRTC.getTemperature();
