@@ -34,7 +34,7 @@ Connect all required components with Arduino Nano microcontroller and enclose in
 
 Instruction how to setup the controller with the correct time and current tower time.
 
-Press the rotary encoder button to enter setup mode when on date or time screen. When enterring setup mode wizard starts to enter all required values step by step. All inputed values are stored when confirming last step (relay delay).
+Press the rotary encoder button to enter setup mode when on date or time screen. When enterring setup mode wizard starts to enter all required values step by step. All inputed values are stored when confirming last step (relay delay). Rotate the rotary encoder button to change the values.
 
 Step 1: Enter correct controller system hour.
 ![image](https://github.com/avgustint/tower-clock/blob/main/images/controller/IMG_9997.jpeg)
@@ -68,8 +68,35 @@ Step 10: Enter relay opening state delay in miliseconds in step of 10 milisecond
 
 On confirming last step, values are stored and set. New time is now used and controller returns to normal operational mode.
 
-## **Components**
+## **Usage**
 
+When conttroller operates in normal mode, you can use rottary encoder button to display different information on LCD screen. When user interact with button, LCD backlight is switched on and remains on for 30 seconds from the last interaction. Following screens are available:
+
+Showing current controller time and day of week.
+![image](https://github.com/avgustint/tower-clock/blob/main/images/controller/IMG_9987.jpeg)
+
+Showing current controller date with Summer/Winter DST.
+![image](https://github.com/avgustint/tower-clock/blob/main/images/controller/IMG_9987.jpeg)
+
+Showing current position of clock indicators on tower.
+![image](https://github.com/avgustint/tower-clock/blob/main/images/controller/IMG_9989.jpeg)
+
+Display relay open state duration in miliseconds. 
+![image](https://github.com/avgustint/tower-clock/blob/main/images/controller/IMG_9990.jpeg)
+
+Display current temperature from Real Time Clock module. 
+![image](https://github.com/avgustint/tower-clock/blob/main/images/controller/IMG_9991.jpeg)
+
+Display minimum recorded temperature and time when recorded. 
+![image](https://github.com/avgustint/tower-clock/blob/main/images/controller/IMG_9992.jpeg)
+
+Display maximum recorded temperature and time when recorded. 
+![image](https://github.com/avgustint/tower-clock/blob/main/images/controller/IMG_9993.jpeg)
+
+Mains power status display. Possible values Ok or Fail. In the Fail state, the relay is not triggered and waits until power is restored.
+![image](https://github.com/avgustint/tower-clock/blob/main/images/controller/IMG_9994.jpeg)
+
+## **Components**
 
 ### Controller Arduino Nano
 ![image](https://github.com/avgustint/tower-clock/assets/9412797/8fbae44a-66fd-4745-98ee-94f49e7eb06a)
