@@ -64,7 +64,7 @@ Step 9: Enter tower clock current minute
 ![image](https://github.com/avgustint/tower-clock/blob/main/images/controller/IMG_0007.jpeg)
 
 Step 10: Enter relay opening state delay in miliseconds in step of 10 miliseconds.
-![image](https://github.com/avgustint/tower-clock/blob/main/images/controller/IMG_0007.jpeg)
+![image](https://github.com/avgustint/tower-clock/blob/main/images/controller/IMG_0008.jpeg)
 
 On confirming last step, values are stored and set. New time is now used and controller returns to normal operational mode.
 
