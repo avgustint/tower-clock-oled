@@ -18,6 +18,18 @@ Wiring diagram how to connect all reauired components.
 
 ![image](https://github.com/avgustint/tower-clock/assets/9412797/83a2db21-fc10-48a3-97cc-b9a19ab0a652)
 
+## **Construction**
+
+Connect all required components with Arduino Nano microcontroller and enclose in appropriate housing.
+
+![image](https://github.com/avgustint/tower-clock/blob/main/images/controller/IMG_0013.jpeg)
+
+![image](https://github.com/avgustint/tower-clock/blob/main/images/controller/IMG_0014.jpeg)
+
+![image](https://github.com/avgustint/tower-clock/blob/main/images/controller/IMG_0015.jpeg)
+
+![image](https://github.com/avgustint/tower-clock/blob/main/images/controller/IMG_9985.jpeg)
+
 ## **Setup**
 
 Instruction how to setup the controller with the correct time and current tower time.
