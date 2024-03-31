@@ -121,14 +121,19 @@ Mains power status display. Possible values Ok or Fail. In the Fail state, the r
 
 Few images from tower clock motot that rotate the clock indicators. Motor has also own switch that remains open until indicators not rotated for one minute.
 
+Front view
 ![image](https://github.com/avgustint/tower-clock/blob/main/images/motor/IMG_9879.jpeg)
 
+Side view
 ![image](https://github.com/avgustint/tower-clock/blob/main/images/motor/IMG_9880.jpeg)
 
+Side view
 ![image](https://github.com/avgustint/tower-clock/blob/main/images/motor/IMG_9881.jpeg)
 
+Top view
 ![image](https://github.com/avgustint/tower-clock/blob/main/images/motor/IMG_9882.jpeg)
 
+Switch closeup
 ![image](https://github.com/avgustint/tower-clock/blob/main/images/motor/IMG_9883.jpeg)
 
 
