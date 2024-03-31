@@ -117,7 +117,19 @@ Mains power status display. Possible values Ok or Fail. In the Fail state, the r
 ### Relay Module
 ![image](https://github.com/avgustint/tower-clock/assets/9412797/2f2f898b-8374-46ce-9868-71399b85e3fd)
 
+## **Tower Clock Motor** 
 
+Few images from tower clock motot that rotate the clock indicators. Motor has also own switch that remains open until indicators not rotated for one minute.
+
+![image](https://github.com/avgustint/tower-clock/blob/main/images/motor/IMG_9879.jpeg)
+
+![image](https://github.com/avgustint/tower-clock/blob/main/images/motor/IMG_9880.jpeg)
+
+![image](https://github.com/avgustint/tower-clock/blob/main/images/motor/IMG_9881.jpeg)
+
+![image](https://github.com/avgustint/tower-clock/blob/main/images/motor/IMG_9882.jpeg)
+
+![image](https://github.com/avgustint/tower-clock/blob/main/images/motor/IMG_9883.jpeg)
 
 
 
