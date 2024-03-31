@@ -28,14 +28,33 @@ Step 1: Enter correct controller system hour.
 ![image](https://github.com/avgustint/tower-clock/blob/main/images/controller/IMG_9997.jpeg)
 
 Step 2: Enter correct controller system minutes. On confirm step 0 seconds will be set.
-Step 3: Enter day of the week (Monday, Tuesday, Wednesday,...)
-Step 4: Enter current day of month.
-Step 5: Enter current month.
-Step 6: Enter current year. Only last 2 digits of current century.
+![image](https://github.com/avgustint/tower-clock/blob/main/images/controller/IMG_9999.jpeg)
+
+Step 3: Enter current day of month.
+![image](https://github.com/avgustint/tower-clock/blob/main/images/controller/IMG_0001.jpeg)
+
+Step 4: Enter current month.
+![image](https://github.com/avgustint/tower-clock/blob/main/images/controller/IMG_0002.jpeg)
+
+Step 5: Enter current year. Only last 2 digits of current century.
+![image](https://github.com/avgustint/tower-clock/blob/main/images/controller/IMG_0003.jpeg)
+
+Step 6: Enter day of the week (Monday, Tuesday, Wednesday,...)
+![image](https://github.com/avgustint/tower-clock/blob/main/images/controller/IMG_0004.jpeg)
+
 Step 7: Enter summer or winter time regarding daylight saving time rules.
+![image](https://github.com/avgustint/tower-clock/blob/main/images/controller/IMG_0005.jpeg)
+
 Step 8: Enter tower clock current hour
+![image](https://github.com/avgustint/tower-clock/blob/main/images/controller/IMG_0006.jpeg)
+
 Step 9: Enter tower clock current minute
-Step 10: Enter relay opening state delay.
+![image](https://github.com/avgustint/tower-clock/blob/main/images/controller/IMG_0007.jpeg)
+
+Step 10: Enter relay opening state delay in miliseconds in step of 10 miliseconds.
+![image](https://github.com/avgustint/tower-clock/blob/main/images/controller/IMG_0007.jpeg)
+
+On confirming last step, values are stored and set. New time is now used and controller returns to normal operational mode.
 
 ## **Components**
 
