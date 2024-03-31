@@ -76,7 +76,7 @@ Showing current controller time and day of week.
 ![image](https://github.com/avgustint/tower-clock/blob/main/images/controller/IMG_9987.jpeg)
 
 Showing current controller date with Summer/Winter DST.
-![image](https://github.com/avgustint/tower-clock/blob/main/images/controller/IMG_9987.jpeg)
+![image](https://github.com/avgustint/tower-clock/blob/main/images/controller/IMG_9988.jpeg)
 
 Showing current position of clock indicators on tower.
 ![image](https://github.com/avgustint/tower-clock/blob/main/images/controller/IMG_9989.jpeg)
