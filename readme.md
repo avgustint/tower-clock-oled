@@ -12,6 +12,30 @@ Use of lithium battery as UPS controller. The controller is powered by a 5 V DC 
 
 The RTC module is temperature compensated. The RTC module reads and records the minimum/maximum temperature and displays it on LCD screen.
 
+## **Wiring**
+
+Wiring diagram how to connect all reauired components.
+
+![image](https://github.com/avgustint/tower-clock/assets/9412797/83a2db21-fc10-48a3-97cc-b9a19ab0a652)
+
+## **Setup**
+
+Instruction how to setup the controller with the correct time and current tower time.
+
+Press the rotary encoder button to enter setup mode when on date or time screen. When enterring setup mode wizard starts to enter all required values step by step. All inputed values are stored when confirming last step (relay delay).
+
+Step 1: Enter correct controller system hour.
+![image](https://github.com/avgustint/tower-clock/blob/main/images/controller/IMG_9997.jpeg)
+
+Step 2: Enter correct controller system minutes. On confirm step 0 seconds will be set.
+Step 3: Enter day of the week (Monday, Tuesday, Wednesday,...)
+Step 4: Enter current day of month.
+Step 5: Enter current month.
+Step 6: Enter current year. Only last 2 digits of current century.
+Step 7: Enter summer or winter time regarding daylight saving time rules.
+Step 8: Enter tower clock current hour
+Step 9: Enter tower clock current minute
+Step 10: Enter relay opening state delay.
 
 ## **Components**
 
@@ -35,9 +59,7 @@ The RTC module is temperature compensated. The RTC module reads and records the 
 ### Relay Module
 ![image](https://github.com/avgustint/tower-clock/assets/9412797/2f2f898b-8374-46ce-9868-71399b85e3fd)
 
-## **Wiring**
 
-![image](https://github.com/avgustint/tower-clock/assets/9412797/83a2db21-fc10-48a3-97cc-b9a19ab0a652)
 
 
 
