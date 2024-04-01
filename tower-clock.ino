@@ -73,23 +73,22 @@ int edit_day = 1;
 int edit_hour = 0;
 int edit_minute = 0;
 int edit_dayOfWeek = 1;
-bool edit_isSummerTime = false;
 int edit_towerHour = 0;
 int edit_towerMinute = 0;
 int edit_relayDelay = 1500;
 int edit_waitDelay = 5000;
 
 // app
-const int NUM_OF_PAGES = 11;
-String screenPages[NUM_OF_PAGES] = { "sysTime", "sysDate", "towerTime", "delay", "wait", "temp", "minTemp", "maxTemp", "power", "lastFailure", "uptime" };
-int currentPageIndex = 0;              // current selected page to show on LCD
-bool editMode = false;                 // are we in edit mode flag
-int editStep = 1;                      // current step of configuration for each screen
-String lastTimeUpdate = "";            // storing last updated time on LCD - to not refresh LCD to often
-unsigned long lastBacklightOpen = 0;   // stored time when LCD backlight was opened
-int backlightDuration = 30000;         // the duration of LCD backlight turn on time in miliseconds (30s)
-unsigned long lastEditModeChange = 0;  // stored time when user done some interaction in edit mode - auto cancel edit mode after timout
-int editModeAutoExitDuration = 60000;  // the duration of waiting time in edit mode after which we auto close edit mode withouth changes (60s)
+const int NUM_OF_PAGES = 12;
+String screenPages[NUM_OF_PAGES] = { "sysTime", "sysDate", "towerTime", "delay", "wait", "temp", "minTemp", "maxTemp", "power", "lastFailure", "uptime", "downtime" };
+int currentPageIndex = 0;                       // current selected page to show on LCD
+bool editMode = false;                          // are we in edit mode flag
+int editStep = 1;                               // current step of configuration for each screen
+String lastTimeUpdate = "";                     // storing last updated time on LCD - to not refresh LCD to often
+unsigned long lastBacklightOpen = 0;            // stored time when LCD backlight was opened
+unsigned int backlightDuration = 30000;         // the duration of LCD backlight turn on time in miliseconds (30s)
+unsigned long lastEditModeChange = 0;           // stored time when user done some interaction in edit mode - auto cancel edit mode after timout
+unsigned int editModeAutoExitDuration = 60000;  // the duration of waiting time in edit mode after which we auto close edit mode withouth changes (60s)
 
 // relay
 int relayDelay = 1500;  // open state of relay delay
@@ -120,7 +119,7 @@ void setup() {
   debouncerClk.interval(2);        // Set debounce interval (in milliseconds)
   digitalWrite(RELAY_PIN, HIGH);   // turn off the relay
   getCurrentTime();                // read current time from RTC module
-
+  isSummerTime = checkIsSummerTime();             // check if currently is Summer or Winter time depending to DST rules
   // initialize tower clock on same as current time  - will be set correctly in edit mode - here just to prevent rotating the tower clock
   towerHour = hour;
   towerMinute = minute;
@@ -146,7 +145,7 @@ void loop() {
   if (editMode) {
     // check auto exit edit mode timeout already passed
     unsigned long currentMillis = millis();
-    if (currentMillis - lastEditModeChange >= editModeAutoExitDuration) {  // auto exit edit mode after no itteraction timeout
+    if ((currentMillis - lastEditModeChange) >= editModeAutoExitDuration) {  // auto exit edit mode after no itteraction timeout
       exitEditMode(false);
     }
   } else {
@@ -185,7 +184,7 @@ void updateScreenDateTime() {
     lastTimeUpdate = currentTime;
     String currentPage = screenPages[currentPageIndex];
     // update the lcd only if date time changed and showing hour screen
-    if (currentPage == "sysTime") {
+    if (currentPage == "sysTime" || currentPage == "uptime" || currentPage == "downtime") {
       updateDisplay();
     }
   }
@@ -348,9 +347,6 @@ void encoderRotated() {
         } else if (edit_dayOfWeek < 1) {
           edit_dayOfWeek = 7;
         }
-      } else if (editStep == 5) {
-        // changing the summer/winter time setting
-        edit_isSummerTime = !edit_isSummerTime;
       }
     } else if (currentPage == "towerTime") {
       if (editStep == 1) {
@@ -412,9 +408,9 @@ void changeScreen(int change) {
 // user presses encoder button
 void encoderPressed() {
   showBacklight();  // turn on LCD backlight
+  lastEditModeChange = millis();
   String currentPage = screenPages[currentPageIndex];
   if (editMode) {
-    lastEditModeChange = millis();
     // in edit mode go to the next step of configuration
     editStep++;
     if (currentPage == "sysTime") {
@@ -424,7 +420,7 @@ void encoderPressed() {
         editStep = 1;  // moving to the date update
       }
     } else if (currentPage == "sysDate") {
-      if (editStep == 6) {
+      if (editStep == 5) {
         // when last step on setting date
         currentPageIndex = currentPageIndex + 1;
         editStep = 1;  // moving to the tower time setup
@@ -440,7 +436,7 @@ void encoderPressed() {
       currentPageIndex = currentPageIndex + 1;
       editStep = 1;  // moving to the motor wait time setup
     } else if (currentPage == "wait") {
-      if (editStep == 2) {
+      if (editStep == 3) {
         if (confirmationResult) {
           // finishing the edit mode - update the RTC module with new settings
           myRTC.setHour(edit_hour);
@@ -452,9 +448,9 @@ void encoderPressed() {
           myRTC.setDoW(edit_dayOfWeek);
           towerHour = edit_towerHour;
           towerMinute = edit_towerMinute;
-          isSummerTime = edit_isSummerTime;
           relayDelay = edit_relayDelay;
           waitDelay = edit_waitDelay;
+          isSummerTime = checkIsSummerTime();
           exitEditMode(true);  //move to normal operational mode
         } else {
           exitEditMode(false);  //move to normal operational mode
@@ -481,7 +477,6 @@ void enterEditMode() {
   edit_hour = hour;
   edit_minute = minute;
   edit_dayOfWeek = dayOfWeek;
-  edit_isSummerTime = isSummerTime;
   edit_towerHour = towerHour;
   edit_towerMinute = towerMinute;
   edit_relayDelay = relayDelay;
@@ -541,11 +536,6 @@ void updateDisplay() {
         lcd.print("Set Day Of Week");
         lcd.setCursor(0, 1);
         lcd.print(getWeekDayName(edit_dayOfWeek));
-      } else if (editStep == 5) {
-        // configuring if we are currently using summer time or winter time
-        lcd.print("Is Summer Time");
-        lcd.setCursor(0, 1);
-        lcd.print(edit_isSummerTime ? "Yes" : "No");
       }
     } else if (currentPage == "towerTime") {
       if (editStep == 1) {
@@ -629,11 +619,15 @@ void updateDisplay() {
       lcd.setCursor(0, 1);
       lcd.print(lastFailureDate != "" ? lastFailureDate : "Never");
     } else if (currentPage == "uptime") {
-      // display power supply last failure date
-      lcd.print("Uptime");
+      // display power supply uptime seconds
+      lcd.print("Uptime seconds");
       lcd.setCursor(0, 1);
-      float uptimePercentage = upTimeSeconds / (upTimeSeconds + downTimeSeconds) * 100;
-      lcd.print(String(uptimePercentage, 5) + " %");
+      lcd.print(String(upTimeSeconds));
+    } else if (currentPage == "downtime") {
+      // display power supply down time seconds
+      lcd.print("Downtime seconds");
+      lcd.setCursor(0, 1);
+      lcd.print(String(downTimeSeconds));
     }
   }
 }
@@ -731,4 +725,26 @@ int getTowerMinutes() {
     dayMinutes = -1;
   }
   return dayMinutes;
+}
+
+// calculate current date is using Summer or Winter DST rules
+bool checkIsSummerTime() {
+  // earliest possible date
+  // 25 26 27 28 29 30 31 - date
+  // 7  1  2  3  4  5  6  - day of week index
+
+  // latest possible date
+  // 25 26 27 28 29 30 31
+  // 1  2  3  4  5  6  7
+
+  if (month < 3 || month > 10) return false;
+  if (month > 3 && month < 10) return true;
+
+  // calculate previous sunday day
+  int previousSunday = day - dayOfWeek % 7; // use different indexes the app 0 - Sunday, 1-Monday,..., 6-Saturday 
+
+  if (month == 3) return previousSunday >= 25;
+  if (month == 10) return previousSunday < 25;
+
+  return false;  // this line never gonna happend
 }
