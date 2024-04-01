@@ -54,17 +54,20 @@ Step 5: Enter current year. Only last 2 digits of current century.
 Step 6: Enter day of the week (Monday, Tuesday, Wednesday,...)
 ![image](https://github.com/avgustint/tower-clock/blob/main/images/controller/IMG_0004.jpeg)
 
-Step 7: Enter summer or winter time regarding daylight saving time rules.
-![image](https://github.com/avgustint/tower-clock/blob/main/images/controller/IMG_0005.jpeg)
-
-Step 8: Enter tower clock current hour
+Step 7: Enter tower clock current hour
 ![image](https://github.com/avgustint/tower-clock/blob/main/images/controller/IMG_0006.jpeg)
 
-Step 9: Enter tower clock current minute
+Step 8: Enter tower clock current minute
 ![image](https://github.com/avgustint/tower-clock/blob/main/images/controller/IMG_0007.jpeg)
 
-Step 10: Enter relay opening state delay in miliseconds in step of 10 miliseconds.
+Step 9: Enter relay opening state delay in miliseconds in step of 10 miliseconds.
 ![image](https://github.com/avgustint/tower-clock/blob/main/images/controller/IMG_0008.jpeg)
+
+Step 10: Enter motor rotating wait time after triggering the relay in miliseconds in step of 10 miliseconds.
+![image](https://github.com/avgustint/tower-clock/blob/main/images/controller/IMG_0021.jpeg)
+
+Step 11: Confirm or Cancel inserted values to take affect.
+![image](https://github.com/avgustint/tower-clock/blob/main/images/controller/IMG_0022.jpeg)
 
 On confirming last step, values are stored and set. New time is now used and controller returns to normal operational mode.
 
@@ -84,6 +87,9 @@ Showing current position of clock indicators on tower.
 Display relay open state duration in miliseconds. 
 ![image](https://github.com/avgustint/tower-clock/blob/main/images/controller/IMG_9990.jpeg)
 
+Display motor rotating wait time in miliseconds
+![image](https://github.com/avgustint/tower-clock/blob/main/images/controller/IMG_0017.jpeg)
+
 Display current temperature from Real Time Clock module. 
 ![image](https://github.com/avgustint/tower-clock/blob/main/images/controller/IMG_9991.jpeg)
 
@@ -95,6 +101,15 @@ Display maximum recorded temperature and time when recorded.
 
 Mains power status display. Possible values Ok or Fail. In the Fail state, the relay is not triggered and waits until power is restored.
 ![image](https://github.com/avgustint/tower-clock/blob/main/images/controller/IMG_9994.jpeg)
+
+Display last mains power failure date and time
+![image](https://github.com/avgustint/tower-clock/blob/main/images/controller/IMG_0018.jpeg)
+
+Display total uptime in seconds
+![image](https://github.com/avgustint/tower-clock/blob/main/images/controller/IMG_0019.jpeg)
+
+Display total downtime in seconds
+![image](https://github.com/avgustint/tower-clock/blob/main/images/controller/IMG_0020.jpeg)
 
 ## **Components**
 
