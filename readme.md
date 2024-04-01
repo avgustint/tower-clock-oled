@@ -69,7 +69,7 @@ Step 10: Enter motor rotating wait time after triggering the relay in milisecond
 Step 11: Confirm or Cancel inserted values to take affect.
 ![image](https://github.com/avgustint/tower-clock/blob/main/images/controller/IMG_0022.jpeg)
 
-On confirming last step, values are stored and set. New time is now used and controller returns to normal operational mode. If user does not finish the setup process, then controller returns to normal operation after timeout (60 seconds) since last user interaction. This prevents staying in edit mode when user just accidently clicks on endoced button. In edit mode relay trigger does not operate and tower clock would be stopped.
+On confirming last step, values are stored and set. New time is now used and controller returns to normal operational mode. If user does not finish the setup process, then controller returns to normal operation after timeout (60 seconds) since last user interaction. This prevents staying in edit mode when user just accidently clicks on encoder button. In edit mode relay trigger does not operate and tower clock would be stopped.
 
 ## **Usage**
 
@@ -116,14 +116,16 @@ Display total downtime in seconds
 ### Controller Arduino Nano
 ![image](https://github.com/avgustint/tower-clock/assets/9412797/8fbae44a-66fd-4745-98ee-94f49e7eb06a)
 
+### LCD display LCM1602C
+![image](https://github.com/avgustint/tower-clock/assets/9412797/59cefcb1-090a-4a67-a93b-77a3ea650e69)
 
-### Rechargeable Lithium Battery 
+### Rechargeable Lithium Battery LP103395 3.7V 3700mAh 13.7Wh
 ![image](https://github.com/avgustint/tower-clock/assets/9412797/0f3e59af-5f53-4cb3-9975-40ea88144ab4)
 
 ### Power Supply and Charging Controller
 ![image](https://github.com/avgustint/tower-clock/assets/9412797/9fa9ace6-a631-413e-a117-079d3b30c8a3)
 
-### Real Time Clock Module
+### Real Time Clock Module DS3231
 ![image](https://github.com/avgustint/tower-clock/assets/9412797/990adb97-49cd-43ab-b6b3-29cf0235794e)
 
 ### Rotary Encoder with Press Button
@@ -134,7 +136,7 @@ Display total downtime in seconds
 
 ## **Tower Clock Motor** 
 
-Few images from tower clock motot that rotate the clock indicators. Motor has also own switch that remains open until indicators not rotated for one minute.
+Few images from tower clock motor that rotates the clock indicators. Motor has also own switch that remains open until indicators not rotated for one minute. This is the reason we use additional motor delay in configuration.
 
 Front view
 ![image](https://github.com/avgustint/tower-clock/blob/main/images/motor/IMG_9879.jpeg)
@@ -156,8 +158,6 @@ Switch closeup
 
 * Replace mechanical relay module with mosfet
 * Add Lora remote diagnostic and configuration options. Option to remote setup exact time from NTP server.
-* Add additional power supply diagnostic data (uptime, last failure,...)
-* Add confirmation screen in setup mode. Start wizard on all screens.
 
 
 March 2024 
