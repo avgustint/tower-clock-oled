@@ -69,7 +69,7 @@ Step 10: Enter motor rotating wait time after triggering the relay in milisecond
 Step 11: Confirm or Cancel inserted values to take affect.
 ![image](https://github.com/avgustint/tower-clock/blob/main/images/controller/IMG_0022.jpeg)
 
-On confirming last step, values are stored and set. New time is now used and controller returns to normal operational mode.
+On confirming last step, values are stored and set. New time is now used and controller returns to normal operational mode. If user does not finish the setup process, then controller returns to normal operation after timeout (60 seconds) since last user interaction. This prevents staying in edit mode when user just accidently clicks on endoced button. In edit mode relay trigger does not operate and tower clock would be stopped.
 
 ## **Usage**
 
