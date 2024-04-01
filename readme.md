@@ -137,6 +137,11 @@ Switch closeup
 ![image](https://github.com/avgustint/tower-clock/blob/main/images/motor/IMG_9883.jpeg)
 
 
+## **Future improvements**
+
+* Replace mechanical relay module with mosfet
+* Add Lora remote diagnostic and configuration options
+* Add additional power supply diagnostic data (uptime, last failure,...)
 
 
 March 2024 
