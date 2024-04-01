@@ -34,7 +34,7 @@ Connect all required components with Arduino Nano microcontroller and enclose in
 
 Instruction how to setup the controller with the correct time and current tower time.
 
-Press the rotary encoder button to enter setup mode when on date or time screen. When enterring setup mode wizard starts to enter all required values step by step. All inputed values are stored when confirming last step (relay delay). Rotate the rotary encoder button to change the values.
+Press the rotary encoder button to enter setup mode when on date or time screen. When enterring setup mode wizard starts to enter all required values step by step. Each click navigate wizard to the next configuration step. All inputed values are stored when confirming last step (relay delay). Confirm last step on full minute time to have exact time on seconds level. Rotate the rotary encoder button to change the values.
 
 Step 1: Enter correct controller system hour.
 ![image](https://github.com/avgustint/tower-clock/blob/main/images/controller/IMG_9997.jpeg)
@@ -140,8 +140,9 @@ Switch closeup
 ## **Future improvements**
 
 * Replace mechanical relay module with mosfet
-* Add Lora remote diagnostic and configuration options
+* Add Lora remote diagnostic and configuration options. Option to remote setup exact time from NTP server.
 * Add additional power supply diagnostic data (uptime, last failure,...)
+* Add confirmation screen in setup mode. Start wizard on all screens.
 
 
 March 2024 
