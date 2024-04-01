@@ -30,11 +30,11 @@
 #define BACKLIGHT_PIN 9
 
 // other pins
-#define POWER_CHECK_PIN 10   // pin for checking power supply
-#define RELAY_PIN 14         //define pin to trigger the relay
+#define POWER_CHECK_PIN 10  // pin for checking power supply
+#define RELAY_PIN 14        //define pin to trigger the relay
 
 
-// variables
+// RTC variables
 bool century = false;
 bool h12Flag;
 bool pmFlag;
@@ -50,7 +50,7 @@ int dayOfWeek = 1;
 bool isSummerTime = false;  // are we using summer or winter time depending on DST rules
 
 // tower time - the current position of tower clock indicators
-int towerHour = 0;  
+int towerHour = 0;
 int towerMinute = 0;
 
 // temperature
@@ -60,38 +60,60 @@ int maxTemp = -999;
 String minTempDate = "";
 String maxTempDate = "";
 
+// power supply
+String lastFailureDate = "";
+unsigned long upTimeSeconds = 0;
+unsigned long downTimeSeconds = 0;
+
+// setup mode variables
+bool confirmationResult = false;
+int edit_year = 24;
+int edit_month = 1;
+int edit_day = 1;
+int edit_hour = 0;
+int edit_minute = 0;
+int edit_dayOfWeek = 1;
+bool edit_isSummerTime = false;
+int edit_towerHour = 0;
+int edit_towerMinute = 0;
+int edit_relayDelay = 1500;
+int edit_waitDelay = 5000;
+
 // app
-const int NUM_OF_PAGES = 8;
-String screenPages[NUM_OF_PAGES] = { "sysTime", "sysDate", "towerTime", "delay", "temp", "minTemp", "maxTemp", "power" };
-int currentPageIndex = 0;             // current selected page to show on LCD
-bool editMode = false;                // are we in edit mode flag
-int editStep = 1;                     // current step of configuration for each screen
-String lastTimeUpdate = "";           // storing last updated time on LCD - to not refresh LCD to often
-unsigned long lastBacklightOpen = 0;  // stored time when LCD backlight was opened   
-int backlightDuration = 30000;        // the duration of LCD backlight turn on time in miliseconds (30s)
+const int NUM_OF_PAGES = 11;
+String screenPages[NUM_OF_PAGES] = { "sysTime", "sysDate", "towerTime", "delay", "wait", "temp", "minTemp", "maxTemp", "power", "lastFailure", "uptime" };
+int currentPageIndex = 0;              // current selected page to show on LCD
+bool editMode = false;                 // are we in edit mode flag
+int editStep = 1;                      // current step of configuration for each screen
+String lastTimeUpdate = "";            // storing last updated time on LCD - to not refresh LCD to often
+unsigned long lastBacklightOpen = 0;   // stored time when LCD backlight was opened
+int backlightDuration = 30000;         // the duration of LCD backlight turn on time in miliseconds (30s)
+unsigned long lastEditModeChange = 0;  // stored time when user done some interaction in edit mode - auto cancel edit mode after timout
+int editModeAutoExitDuration = 60000;  // the duration of waiting time in edit mode after which we auto close edit mode withouth changes (60s)
 
 // relay
-int relayDelay = 1500;
+int relayDelay = 1500;  // open state of relay delay
+int waitDelay = 5000;   // wait time to end motor spinning
 
 // initialize objects
-LiquidCrystal lcd(RS_PIN, EN_PIN, D4_PIN, D5_PIN, D6_PIN, D7_PIN); // declare object for LCD display manipulation
-DS3231 myRTC;                                                      // object for getting and setting time in Real Time Clock module
+LiquidCrystal lcd(RS_PIN, EN_PIN, D4_PIN, D5_PIN, D6_PIN, D7_PIN);  // declare object for LCD display manipulation
+DS3231 myRTC;                                                       // object for getting and setting time in Real Time Clock module
 
 Bounce debouncerSwitch = Bounce();  // Create a Bounce object to prevent any glitches from rotary encoder switch
 Bounce debouncerClk = Bounce();     // Create a Bounce object to prevent any glitches from rotary encoder clock signal
 
 // initialize the controller
 void setup() {
-  Wire.begin();                   // start I2C communication with RTC module
-  lcd.begin(16, 2);               // set up the LCD's number of columns and rows:
-  
+  Wire.begin();      // start I2C communication with RTC module
+  lcd.begin(16, 2);  // set up the LCD's number of columns and rows:
+
   // setup controller pins
   pinMode(CLK_PIN, INPUT);
   pinMode(DT_PIN, INPUT);
   pinMode(SW_PIN, INPUT_PULLUP);
   pinMode(RELAY_PIN, OUTPUT);
   pinMode(POWER_CHECK_PIN, INPUT);
-  pinMode(BACKLIGHT_PIN,OUTPUT);
+  pinMode(BACKLIGHT_PIN, OUTPUT);
   debouncerSwitch.attach(SW_PIN);  // Attach to the rotary encoder press pin
   debouncerSwitch.interval(100);   // Set debounce interval (in milliseconds)
   debouncerClk.attach(CLK_PIN);    // Attach to the rotary encoder clock pin
@@ -102,7 +124,7 @@ void setup() {
   // initialize tower clock on same as current time  - will be set correctly in edit mode - here just to prevent rotating the tower clock
   towerHour = hour;
   towerMinute = minute;
-  showBacklight();                 // turn the lcd backlight on
+  showBacklight();  // turn the lcd backlight on
 }
 
 // main microcontroller loop
@@ -121,12 +143,19 @@ void loop() {
     encoderRotated();
   }
 
-  if (!editMode) {
-    getCurrentTime();         // read current time from RTC module 
-    updateScreenDateTime();   // check need to update the LCD screen
-    updateTowerClock();       // check need to update tower clock
+  if (editMode) {
+    // check auto exit edit mode timeout already passed
+    unsigned long currentMillis = millis();
+    if (currentMillis - lastEditModeChange >= editModeAutoExitDuration) {  // auto exit edit mode after no itteraction timeout
+      exitEditMode(false);
+    }
+  } else {
+    getCurrentTime();        // read current time from RTC module
+    updateScreenDateTime();  // check need to update the LCD screen
+    updateTowerClock();      // check need to update tower clock
   }
-  checkLcdBacklight();        // check need to turn off the LCD backlight
+
+  checkLcdBacklight();  // check need to turn off the LCD backlight
 }
 
 // read the current time from the RTC module
@@ -142,33 +171,41 @@ void getCurrentTime() {
   checkDaylightSavingChanges();
 }
 
-// call the update lcd screen only when date time changes and we are showing the current time to prevent updating the LCD to often 
-void updateScreenDateTime(){
+// call the update lcd screen only when date time changes and we are showing the current time to prevent updating the LCD to often
+void updateScreenDateTime() {
   // get the current date time
   String currentTime = getFormatedDate(year, month, day) + " " + getFormatedTime(hour, minute, second);
-  String currentPage = screenPages[currentPageIndex];
-  // update the lcd only if date time changed and showing hour screen
-  if (lastTimeUpdate != currentTime && currentPage == "sysTime") {
+  if (lastTimeUpdate != currentTime) {
+    if (isGridPowerOn()) {
+      upTimeSeconds++;
+    } else {
+      downTimeSeconds++;
+      lastFailureDate = currentTime;
+    }
     lastTimeUpdate = currentTime;
-    updateDisplay();
+    String currentPage = screenPages[currentPageIndex];
+    // update the lcd only if date time changed and showing hour screen
+    if (currentPage == "sysTime") {
+      updateDisplay();
+    }
   }
 }
 
-// check if we need to update the time because of DST rules in Europe 
+// check if we need to update the time because of DST rules in Europe
 // changing the time on last Sunday in March and October
-void checkDaylightSavingChanges(){
+void checkDaylightSavingChanges() {
   // check last Sunday in March or October and update the time accordingly
   // earliest possible date in 25. March or October and latest 31. March or October
-  if (dayOfWeek==7 && day>=25){
-    if (month==3 && hour==2 && minute==0){
+  if (dayOfWeek == 7 && day >= 25) {
+    if (month == 3 && hour == 2 && minute == 0) {
       // moving hour forward on 02:00 to 03:00
-      hour=3;
+      hour = 3;
       myRTC.setHour(hour);
       isSummerTime = true;
     }
     // moving hour backwards from 03:00 to 2:00 - do this only once otherwise will be in the loop
-    else if (month==10 && hour==3 && minute==0 && isSummerTime){
-      hour=2;
+    else if (month == 10 && hour == 3 && minute == 0 && isSummerTime) {
+      hour = 2;
       myRTC.setHour(hour);
       isSummerTime = false;
     }
@@ -183,43 +220,43 @@ void updateTowerClock() {
   // minutesDiff > 0 curent time is ahead of tower time - try to catch up, but only if current time is less then 6 hours ahead, otherwise wait
   int sixHoursDiff = 6 * 60;
   if (minutesDiff > 0 && minutesDiff < sixHoursDiff) {
-    turnTheClock();       // need to turn the tower clock
-    checkTemperature();   // every minute read also RTC module temperature
-  } 
+    turnTheClock();      // need to turn the tower clock
+    checkTemperature();  // every minute read also RTC module temperature
+  }
 }
 
 // Turn the tower clock if there is power supply from grid, because otherwise motor will not rotate when relay is triggered
 bool turnTheClock() {
   // check we have power supply and not running on battery - when there is no power we can not run the motor
   if (isGridPowerOn()) {
-    showOperationMessage();           // show message on lcd screen that motor is operation
-    digitalWrite(RELAY_PIN, LOW);     // open relay
-    delay(relayDelay);                // keep relay open for the delay setup in settings
-    digitalWrite(RELAY_PIN, HIGH);    // close relay
-    incrementTowerClock();            // increment the tower time
-    delay(5000);                      // do not trigger the relay for next 5 seconds - to not rotate too quickly when hour change on DST also motor is rotating longer then relay is open - motor is having own relay to turn off when rotated enough 
-    updateDisplay();                  // update the display with new tower time and removing operational message
+    showOperationMessage();         // show message on lcd screen that motor is operation
+    digitalWrite(RELAY_PIN, LOW);   // open relay
+    delay(relayDelay);              // keep relay open for the delay setup in settings
+    digitalWrite(RELAY_PIN, HIGH);  // close relay
+    incrementTowerClock();          // increment the tower time
+    delay(waitDelay);               // do not trigger the relay for next 5 seconds - to not rotate too quickly when hour change on DST also motor is rotating longer then relay is open - motor is having own relay to turn off when rotated enough
+    updateDisplay();                // update the display with new tower time and removing operational message
     return true;
   }
   return false;
 }
 
 // on user interaction turn on LCD backlight and remenber time light turned on so that we can turn off after timeout
-void showBacklight(){
-    lastBacklightOpen = millis();
-    digitalWrite(BACKLIGHT_PIN, HIGH);
+void showBacklight() {
+  lastBacklightOpen = millis();
+  digitalWrite(BACKLIGHT_PIN, HIGH);
 }
 
 // check LCD backlight is in timeout and we need to turn off the backlight
-void checkLcdBacklight(){
+void checkLcdBacklight() {
   unsigned long currentMillis = millis();
-  if (currentMillis - lastBacklightOpen >= backlightDuration) {// close the backlight after 30 seconds
-    digitalWrite(BACKLIGHT_PIN,LOW);
+  if (currentMillis - lastBacklightOpen >= backlightDuration) {  // close the backlight after 30 seconds
+    digitalWrite(BACKLIGHT_PIN, LOW);
   }
 }
 
 // show message that motor in in the operation and rotating the clock indicators
-void showOperationMessage(){
+void showOperationMessage() {
   lcd.clear();
   lcd.setCursor(0, 0);
   lcd.print("Motor rotating..");
@@ -252,102 +289,114 @@ void encoderRotated() {
   int change = 0;
   int dtState = digitalRead(DT_PIN);
   if (dtState == HIGH) {
-    change = 1;   //rotated clockwise
+    change = 1;  //rotated clockwise
   } else {
     change = -1;  // rotated anticlockwise
   }
   if (editMode) {
+    lastEditModeChange = millis();
     // we are in the edit mode - increment/decrement values accordingly depending on selected screen
     String currentPage = screenPages[currentPageIndex];
     if (currentPage == "sysTime") {
       if (editStep == 1) {
         // update the system time hour
-        hour = hour + change;
-        if (hour > 23) {
-          hour = 0;
-        } else if (hour < 0) {
-          hour = 23;
+        edit_hour = edit_hour + change;
+        if (edit_hour > 23) {
+          edit_hour = 0;
+        } else if (edit_hour < 0) {
+          edit_hour = 23;
         }
       } else if (editStep == 2) {
         // update the system time minutes
-        minute = minute + change;
-        if (minute > 59) {
-          minute = 0;
-        } else if (minute < 0) {
-          minute = 59;
+        edit_minute = edit_minute + change;
+        if (edit_minute > 59) {
+          edit_minute = 0;
+        } else if (edit_minute < 0) {
+          edit_minute = 59;
         }
       }
     } else if (currentPage == "sysDate") {
       if (editStep == 1) {
         // update the system date day
-        day = day + change;
-        if (day > 31) {
-          day = 0;
-        } else if (day < 1) {
-          day = 31;
+        edit_day = edit_day + change;
+        if (edit_day > 31) {
+          edit_day = 0;
+        } else if (edit_day < 1) {
+          edit_day = 31;
         }
       } else if (editStep == 2) {
         // update the system time month
-        month = month + change;
-        if (month > 12) {
-          month = 1;
-        } else if (month < 1) {
-          month = 12;
+        edit_month = edit_month + change;
+        if (edit_month > 12) {
+          edit_month = 1;
+        } else if (edit_month < 1) {
+          edit_month = 12;
         }
       } else if (editStep == 3) {
         // update the system time year - changing only last 2 digits
-        year = year + change;
-        if (year > 99) {
-          year = 0;
-        } else if (year < 0) {
-          year = 99;
+        edit_year = edit_year + change;
+        if (edit_year > 99) {
+          edit_year = 0;
+        } else if (edit_year < 0) {
+          edit_year = 99;
         }
       } else if (editStep == 4) {
         // changing the day of week
-        dayOfWeek = dayOfWeek + change;
-        if (dayOfWeek > 7) {
-          dayOfWeek = 1;
-        } else if (dayOfWeek < 1) {
-          dayOfWeek = 7;
+        edit_dayOfWeek = edit_dayOfWeek + change;
+        if (edit_dayOfWeek > 7) {
+          edit_dayOfWeek = 1;
+        } else if (edit_dayOfWeek < 1) {
+          edit_dayOfWeek = 7;
         }
-      }
-      else if (editStep == 5) {
+      } else if (editStep == 5) {
         // changing the summer/winter time setting
-        isSummerTime = !isSummerTime;
+        edit_isSummerTime = !edit_isSummerTime;
       }
     } else if (currentPage == "towerTime") {
       if (editStep == 1) {
         // updating the tower clock hour
-        towerHour = towerHour + change;
-        if (towerHour > 23) {
-          towerHour = 0;
-        } else if (towerHour < 0) {
-          towerHour = 23;
+        edit_towerHour = edit_towerHour + change;
+        if (edit_towerHour > 23) {
+          edit_towerHour = 0;
+        } else if (edit_towerHour < 0) {
+          edit_towerHour = 23;
         }
       } else if (editStep == 2) {
         // updating the tower clock minutes
-        towerMinute = towerMinute + change;
-        if (towerMinute > 59) {
-          towerMinute = 0;
-        } else if (towerMinute < 0) {
-          towerMinute = 59;
+        edit_towerMinute = edit_towerMinute + change;
+        if (edit_towerMinute > 59) {
+          edit_towerMinute = 0;
+        } else if (edit_towerMinute < 0) {
+          edit_towerMinute = 59;
         }
       }
     } else if (currentPage == "delay") {
       // updating the relay open state duration
-      relayDelay = relayDelay + (change*10);
-      if (delay > 4999) {
-        relayDelay = 0;
-      } else if (relayDelay < 0) {
-        relayDelay = 4999;
+      edit_relayDelay = edit_relayDelay + (change * 10);
+      if (edit_relayDelay > 4999) {
+        edit_relayDelay = 0;
+      } else if (edit_relayDelay < 0) {
+        edit_relayDelay = 4999;
+      }
+    } else if (currentPage == "wait") {
+      // updating the wait motor duration
+      if (editStep == 1) {
+        edit_waitDelay = edit_waitDelay + (change * 10);
+        if (edit_waitDelay > 4999) {
+          edit_waitDelay = 0;
+        } else if (edit_waitDelay < 0) {
+          edit_waitDelay = 4999;
+        }
+      } else {
+        confirmationResult = !confirmationResult;
       }
     }
   } else {
-    changeScreen(change);     // when not in edit mode, just show next/previous screen
+    changeScreen(change);  // when not in edit mode, just show next/previous screen
   }
-  
-  updateDisplay();            // update the lcd screen with latest values
-  showBacklight();            // turn the lcd backlight on
+
+  updateDisplay();  // update the lcd screen with latest values
+  showBacklight();  // turn the lcd backlight on
 }
 
 // show next available screen depending the change direction
@@ -362,62 +411,99 @@ void changeScreen(int change) {
 
 // user presses encoder button
 void encoderPressed() {
-  showBacklight(); // turn on LCD backlight 
+  showBacklight();  // turn on LCD backlight
   String currentPage = screenPages[currentPageIndex];
   if (editMode) {
+    lastEditModeChange = millis();
     // in edit mode go to the next step of configuration
     editStep++;
     if (currentPage == "sysTime") {
       if (editStep == 3) {
-        // when last step of setting time - go to the step of setting date 
-        currentPageIndex = currentPageIndex+1;
-        editStep = 1; // moving to the date update
+        // when last step of setting time - go to the step of setting date
+        currentPageIndex = currentPageIndex + 1;
+        editStep = 1;  // moving to the date update
       }
     } else if (currentPage == "sysDate") {
       if (editStep == 6) {
-        // when last step on setting date 
-        currentPageIndex = currentPageIndex+1;
-        editStep = 1; // moving to the tower time setup
+        // when last step on setting date
+        currentPageIndex = currentPageIndex + 1;
+        editStep = 1;  // moving to the tower time setup
       }
     } else if (currentPage == "towerTime") {
       if (editStep == 3) {
         // on last step on setting tower time
-        currentPageIndex = currentPageIndex+1;
-        editStep = 1; // moving to the delay setup
+        currentPageIndex = currentPageIndex + 1;
+        editStep = 1;  // moving to the delay setup
       }
     } else if (currentPage == "delay") {
-      // finishing the edit mode - update the RTC module with new settings
-      myRTC.setHour(hour);
-      myRTC.setMinute(minute);
-      myRTC.setSecond(0);
-      myRTC.setYear(year);
-      myRTC.setMonth(month);
-      myRTC.setDate(day);
-      myRTC.setDoW(dayOfWeek);
-      exitEditMode(); //move to normal operational mode
+      // on step on setting relay delay
+      currentPageIndex = currentPageIndex + 1;
+      editStep = 1;  // moving to the motor wait time setup
+    } else if (currentPage == "wait") {
+      if (editStep == 2) {
+        if (confirmationResult) {
+          // finishing the edit mode - update the RTC module with new settings
+          myRTC.setHour(edit_hour);
+          myRTC.setMinute(edit_minute);
+          myRTC.setSecond(0);
+          myRTC.setYear(edit_year);
+          myRTC.setMonth(edit_month);
+          myRTC.setDate(edit_day);
+          myRTC.setDoW(edit_dayOfWeek);
+          towerHour = edit_towerHour;
+          towerMinute = edit_towerMinute;
+          isSummerTime = edit_isSummerTime;
+          relayDelay = edit_relayDelay;
+          waitDelay = edit_waitDelay;
+          exitEditMode(true);  //move to normal operational mode
+        } else {
+          exitEditMode(false);  //move to normal operational mode
+        }
+      }
     }
   } else {
-    // currently not in edit mode and button pressed - if we are on any of configurational screens the start edit mode procedure
-    if (currentPage == "sysTime" || currentPage == "sysDate" || currentPage == "towerTime" || currentPage == "delay") {
-      editMode = true;
-      currentPageIndex = 0; // go to the first screen to update all parameters
-      editStep = 1;
-    }
+    // currently not in edit mode and button pressed
+    enterEditMode();
   }
-  updateDisplay();         // update the LCD display with new values
+  updateDisplay();  // update the LCD display with new values
+}
+
+// start edit mode - initialize some variables
+void enterEditMode() {
+  editMode = true;
+  currentPageIndex = 0;  // go to the first screen to update all parameters
+  editStep = 1;
+  confirmationResult = false;
+  // copy current values in edit ones
+  edit_year = year;
+  edit_month = month;
+  edit_day = day;
+  edit_hour = hour;
+  edit_minute = minute;
+  edit_dayOfWeek = dayOfWeek;
+  edit_isSummerTime = isSummerTime;
+  edit_towerHour = towerHour;
+  edit_towerMinute = towerMinute;
+  edit_relayDelay = relayDelay;
+  edit_waitDelay = waitDelay;
 }
 
 // user exited the the edit mode - reinitialize some variables
-void exitEditMode() {
+void exitEditMode(bool valuesUpdated) {
+  currentPageIndex = 0;
   editMode = false;
   editStep = 1;
+  lcd.clear();
+  lcd.setCursor(0, 0);
+  valuesUpdated ? lcd.print("Values saved!") : lcd.print("Cancelled!");
+  delay(500);
 }
 
 // update the LCD screen with all the appropriate data
 void updateDisplay() {
   // clear the complete LCD screen
   lcd.clear();
-  // move to first position on top row 
+  // move to first position on top row
   lcd.setCursor(0, 0);
   String currentPage = screenPages[currentPageIndex];
   if (editMode == true) {
@@ -427,57 +513,68 @@ void updateDisplay() {
         // configuring system time hour
         lcd.print("Set System Hour");
         lcd.setCursor(0, 1);
-        lcd.print(hour);
+        lcd.print(edit_hour);
       } else if (editStep == 2) {
         // configuring system time minutes
         lcd.print("Set System Min.");
         lcd.setCursor(0, 1);
-        lcd.print(minute);
+        lcd.print(edit_minute);
       }
     } else if (currentPage == "sysDate") {
       if (editStep == 1) {
         // configuring system time day
         lcd.print("Set System Day");
         lcd.setCursor(0, 1);
-        lcd.print(day);
+        lcd.print(edit_day);
       } else if (editStep == 2) {
         // configuring system time month
         lcd.print("Set System Month");
         lcd.setCursor(0, 1);
-        lcd.print(month);
+        lcd.print(edit_month);
       } else if (editStep == 3) {
         // configuring system time year
         lcd.print("Set System Year");
         lcd.setCursor(0, 1);
-        lcd.print(year);
+        lcd.print(edit_year);
       } else if (editStep == 4) {
         // configuring day of week - Monday, Tuesday,...
         lcd.print("Set Day Of Week");
         lcd.setCursor(0, 1);
-        lcd.print(getWeekDayName());
+        lcd.print(getWeekDayName(edit_dayOfWeek));
       } else if (editStep == 5) {
         // configuring if we are currently using summer time or winter time
         lcd.print("Is Summer Time");
         lcd.setCursor(0, 1);
-        lcd.print(isSummerTime?"Yes":"No");
+        lcd.print(edit_isSummerTime ? "Yes" : "No");
       }
     } else if (currentPage == "towerTime") {
       if (editStep == 1) {
         // configuring tower clock hour
         lcd.print("Set Tower Hour");
         lcd.setCursor(0, 1);
-        lcd.print(towerHour);
+        lcd.print(edit_towerHour);
       } else if (editStep == 2) {
         // configuring tower clock minutes
         lcd.print("Set Tower Min.");
         lcd.setCursor(0, 1);
-        lcd.print(towerMinute);
+        lcd.print(edit_towerMinute);
       }
     } else if (currentPage == "delay") {
       // configuring relay open state delay
       lcd.print("Set Relay delay");
       lcd.setCursor(0, 1);
-      lcd.print(relayDelay);
+      lcd.print(edit_relayDelay);
+    } else if (currentPage == "wait") {
+      if (editStep == 1) {
+        // configuring motor wait time
+        lcd.print("Set Motor delay");
+        lcd.setCursor(0, 1);
+        lcd.print(edit_waitDelay);
+      } else {
+        lcd.print("Confirm changes?");
+        lcd.setCursor(0, 1);
+        lcd.print(confirmationResult ? "Yes" : "No");
+      }
     }
   } else {
     // we are in normal mode operation
@@ -485,17 +582,27 @@ void updateDisplay() {
       // display current system time and day of week
       lcd.print("System Time");
       lcd.setCursor(0, 1);
-      lcd.print(getFormatedTime(hour, minute, second)+" "+getWeekDayName());
+      lcd.print(getFormatedTime(hour, minute, second) + " " + getWeekDayName(dayOfWeek));
     } else if (currentPage == "sysDate") {
       // display current system date and Summer or Winter time
       lcd.print("System Date");
       lcd.setCursor(0, 1);
-      lcd.print(getFormatedDate(year, month, day)+" "+(isSummerTime?"Summ.":"Wint."));
+      lcd.print(getFormatedDate(year, month, day) + " " + (isSummerTime ? "Summ." : "Wint."));
     } else if (currentPage == "towerTime") {
       // display current tower clock time
       lcd.print("Tower time");
       lcd.setCursor(0, 1);
       lcd.print(getFormatedShortTime(towerHour, towerMinute));
+    } else if (currentPage == "delay") {
+      // display used relay open state delay duration in miliseconds
+      lcd.print("Relay Delay [ms]");
+      lcd.setCursor(0, 1);
+      lcd.print(relayDelay);
+    } else if (currentPage == "wait") {
+      // display used relay open state delay duration in miliseconds
+      lcd.print("Motor Wait [ms]");
+      lcd.setCursor(0, 1);
+      lcd.print(waitDelay);
     } else if (currentPage == "temp") {
       // display current temperature
       lcd.print("Temperature");
@@ -511,53 +618,59 @@ void updateDisplay() {
       lcd.print("Max. T. " + getTemp(maxTemp));
       lcd.setCursor(0, 1);
       lcd.print(maxTempDate);
-    } else if (currentPage == "delay") {
-      // display used relay open state delay duration in miliseconds
-      lcd.print("Relay Delay [ms]");
-      lcd.setCursor(0, 1);
-      lcd.print(relayDelay);
     } else if (currentPage == "power") {
-      // display if grid power supply is working  
+      // display if grid power supply is working
       lcd.print("Power Supply");
       lcd.setCursor(0, 1);
       lcd.print(isGridPowerOn() ? "Ok" : "Fail");
+    } else if (currentPage == "lastFailure") {
+      // display power supply last failure date
+      lcd.print("Last Power Fail.");
+      lcd.setCursor(0, 1);
+      lcd.print(lastFailureDate != "" ? lastFailureDate : "Never");
+    } else if (currentPage == "uptime") {
+      // display power supply last failure date
+      lcd.print("Uptime");
+      lcd.setCursor(0, 1);
+      float uptimePercentage = upTimeSeconds / (upTimeSeconds + downTimeSeconds) * 100;
+      lcd.print(String(uptimePercentage, 5) + " %");
     }
   }
 }
 
 // format temperature with degrees symbol
-String getTemp(int temp){
-  return String(temp)+(char)223+"C";
+String getTemp(int temp) {
+  return String(temp) + (char)223 + "C";
 }
 
 // get day of week names from index 1-Starting on Monday and 7 as Sunday
-String getWeekDayName(){
-  switch (dayOfWeek) {
+String getWeekDayName(int dayIndex) {
+  switch (dayIndex) {
     case 1:
-        return "Mon";
-        break;
+      return "Mon";
+      break;
     case 2:
-        return "Tue";
-        break;
+      return "Tue";
+      break;
     case 3:
-        return "Wed";
-        break;
+      return "Wed";
+      break;
     case 4:
-        return "Thu";
-        break;
+      return "Thu";
+      break;
     case 5:
-        return "Fri";
-        break;
+      return "Fri";
+      break;
     case 6:
-        return "Sat";
-        break;
+      return "Sat";
+      break;
     case 7:
-        return "Sun";
-        break;
+      return "Sun";
+      break;
     // Add more cases for other days
     default:
-        return "Invalid";
-        break;
+      return "Invalid";
+      break;
   }
 }
 
@@ -614,7 +727,7 @@ int getSystemMinutes() {
 int getTowerMinutes() {
   int currentHour = towerHour % 12;  // if hour is in 24h format is the same for tower clock to use 12 hour format
   int dayMinutes = currentHour * 60 + towerMinute;
-  if (dayMinutes==719){ // if last minute in a day then return -1, because first minute in a day using system time will be zero, otherwise tower clock will not be incremented
+  if (dayMinutes == 719) {  // if last minute in a day then return -1, because first minute in a day using system time will be zero, otherwise tower clock will not be incremented
     dayMinutes = -1;
   }
   return dayMinutes;
