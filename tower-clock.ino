@@ -180,7 +180,7 @@ void updateScreenDateTime() {
       upTimeSeconds++;
     } else {
       downTimeSeconds++;
-      lastFailureDate = currentTime;
+      lastFailureDate = getFormatedDate(year, month, day) + " " + getFormatedShortTime(hour, minute);
     }
     lastTimeUpdate = currentTime;
     String currentPage = screenPages[currentPageIndex];
