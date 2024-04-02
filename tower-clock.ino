@@ -79,12 +79,14 @@ int edit_relayDelay = 1500;
 int edit_waitDelay = 5000;
 
 // app
-const int NUM_OF_PAGES = 12;
-String screenPages[NUM_OF_PAGES] = { "sysTime", "sysDate", "towerTime", "delay", "wait", "temp", "minTemp", "maxTemp", "power", "lastFailure", "uptime", "downtime" };
+const int NUM_OF_PAGES = 14;
+String screenPages[NUM_OF_PAGES] = { "sysTime", "sysDate", "towerTime", "delay", "wait", "temp", "minTemp", "maxTemp", "power", "lastFailure", "uptime", "downtime", "lastSetup", "lastReset" };
 int currentPageIndex = 0;                       // current selected page to show on LCD
 bool editMode = false;                          // are we in edit mode flag
 int editStep = 1;                               // current step of configuration for each screen
 String lastTimeUpdate = "";                     // storing last updated time on LCD - to not refresh LCD to often
+String lastTimeSetup = "Unknown";               // storing when we updated the date and time last time - info purposes only to check how accurate is RTC module over time
+String lastTimeStartup = "";                    // storing value since when the controller is running - this will be wrong time if RTC module never initialized before and is fresh one
 unsigned long lastBacklightOpen = 0;            // stored time when LCD backlight was opened
 unsigned int backlightDuration = 30000;         // the duration of LCD backlight turn on time in miliseconds (30s)
 unsigned long lastEditModeChange = 0;           // stored time when user done some interaction in edit mode - auto cancel edit mode after timeout
@@ -114,7 +116,7 @@ void setup() {
   pinMode(POWER_CHECK_PIN, INPUT);
   pinMode(BACKLIGHT_PIN, OUTPUT);
   debouncerSwitch.attach(SW_PIN);  // Attach to the rotary encoder press pin
-  debouncerSwitch.interval(100);   // Set debounce interval (in milliseconds)
+  debouncerSwitch.interval(2);   // Set debounce interval (in milliseconds)
   debouncerClk.attach(CLK_PIN);    // Attach to the rotary encoder clock pin
   debouncerClk.interval(2);        // Set debounce interval (in milliseconds)
   digitalWrite(RELAY_PIN, HIGH);   // turn off the relay
@@ -124,6 +126,7 @@ void setup() {
   towerHour = hour;
   towerMinute = minute;
   showBacklight();  // turn the lcd backlight on
+  lastTimeStartup = getFormatedDate(year, month, day) + " " + getFormatedShortTime(hour, minute);
 }
 
 // main microcontroller loop
@@ -451,6 +454,7 @@ void encoderPressed() {
           relayDelay = edit_relayDelay;
           waitDelay = edit_waitDelay;
           isSummerTime = checkIsSummerTime();
+          lastTimeSetup = getFormatedDate(edit_year, edit_month, edit_day) + " " + getFormatedShortTime(edit_hour, edit_minute);
           exitEditMode(true);  //move to normal operational mode
         } else {
           exitEditMode(false);  //move to normal operational mode
@@ -530,7 +534,7 @@ void updateDisplay() {
         // configuring system time year
         lcd.print("Set System Year");
         lcd.setCursor(0, 1);
-        lcd.print("20"+edit_year);
+        lcd.print("20"+String(edit_year));
       } else if (editStep == 4) {
         // configuring day of week - Monday, Tuesday,...
         lcd.print("Set Day Of Week");
@@ -628,6 +632,16 @@ void updateDisplay() {
       lcd.print("Downtime Seconds");
       lcd.setCursor(0, 1);
       lcd.print(String(downTimeSeconds));
+    } else if (currentPage == "lastSetup") {
+      // display power supply down time seconds
+      lcd.print("Last Setup");
+      lcd.setCursor(0, 1);
+      lcd.print(lastTimeSetup);
+    } else if (currentPage == "lastReset") {
+      // display power supply down time seconds
+      lcd.print("Last Startup");
+      lcd.setCursor(0, 1);
+      lcd.print(lastTimeStartup);
     }
   }
 }
