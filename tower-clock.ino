@@ -335,8 +335,8 @@ void encoderRotated() {
         // update the system time year - changing only last 2 digits
         edit_year = edit_year + change;
         if (edit_year > 99) {
-          edit_year = 0;
-        } else if (edit_year < 0) {
+          edit_year = 24; // minimum year can be current year 2024
+        } else if (edit_year < 24) {
           edit_year = 99;
         }
       } else if (editStep == 4) {
@@ -530,7 +530,7 @@ void updateDisplay() {
         // configuring system time year
         lcd.print("Set System Year");
         lcd.setCursor(0, 1);
-        lcd.print(edit_year);
+        lcd.print("20"+edit_year);
       } else if (editStep == 4) {
         // configuring day of week - Monday, Tuesday,...
         lcd.print("Set Day Of Week");
