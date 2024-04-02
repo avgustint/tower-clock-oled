@@ -260,7 +260,7 @@ void showOperationMessage() {
   lcd.setCursor(0, 0);
   lcd.print("Motor rotating..");
   lcd.setCursor(0, 1);
-  lcd.print("Please wait");
+  lcd.print("Tower time "+getFormatedShortTime(towerHour, towerMinute));
 }
 
 // increment one minute of tower clock
