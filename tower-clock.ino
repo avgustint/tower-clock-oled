@@ -369,19 +369,19 @@ void encoderRotated() {
     } else if (currentPage == "delay") {
       // updating the relay open state duration
       edit_relayDelay = edit_relayDelay + (change * 10);
-      if (edit_relayDelay > 4999) {
+      if (edit_relayDelay > 4990) {
         edit_relayDelay = 0;
       } else if (edit_relayDelay < 0) {
-        edit_relayDelay = 4999;
+        edit_relayDelay = 4990;
       }
     } else if (currentPage == "wait") {
       // updating the wait motor duration
       if (editStep == 1) {
         edit_waitDelay = edit_waitDelay + (change * 10);
-        if (edit_waitDelay > 4999) {
+        if (edit_waitDelay > 4990) {
           edit_waitDelay = 0;
         } else if (edit_waitDelay < 0) {
-          edit_waitDelay = 4999;
+          edit_waitDelay = 4990;
         }
       } else {
         confirmationResult = !confirmationResult;
@@ -551,13 +551,13 @@ void updateDisplay() {
       }
     } else if (currentPage == "delay") {
       // configuring relay open state delay
-      lcd.print("Set Relay delay");
+      lcd.print("Set Relay Delay");
       lcd.setCursor(0, 1);
       lcd.print(edit_relayDelay);
     } else if (currentPage == "wait") {
       if (editStep == 1) {
         // configuring motor wait time
-        lcd.print("Set Motor delay");
+        lcd.print("Set Motor Delay");
         lcd.setCursor(0, 1);
         lcd.print(edit_waitDelay);
       } else {
@@ -580,7 +580,7 @@ void updateDisplay() {
       lcd.print(getFormatedDate(year, month, day) + " " + (isSummerTime ? "Summ." : "Wint."));
     } else if (currentPage == "towerTime") {
       // display current tower clock time
-      lcd.print("Tower time");
+      lcd.print("Tower Time");
       lcd.setCursor(0, 1);
       lcd.print(getFormatedShortTime(towerHour, towerMinute));
     } else if (currentPage == "delay") {
@@ -620,12 +620,12 @@ void updateDisplay() {
       lcd.print(lastFailureDate != "" ? lastFailureDate : "Never");
     } else if (currentPage == "uptime") {
       // display power supply uptime seconds
-      lcd.print("Uptime seconds");
+      lcd.print("Uptime Seconds");
       lcd.setCursor(0, 1);
       lcd.print(String(upTimeSeconds));
     } else if (currentPage == "downtime") {
       // display power supply down time seconds
-      lcd.print("Downtime seconds");
+      lcd.print("Downtime Seconds");
       lcd.setCursor(0, 1);
       lcd.print(String(downTimeSeconds));
     }
