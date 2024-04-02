@@ -16,7 +16,7 @@ The RTC module is temperature compensated. The RTC module reads and records the 
 
 Wiring diagram how to connect all required components.
 
-![image](https://github.com/avgustint/tower-clock/images/other/clock-wiring.png)
+![image](https://github.com/avgustint/tower-clock/blob/main/images/other/clock-wiring.png)
 
 ## **Construction**
 
