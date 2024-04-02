@@ -87,8 +87,8 @@ int editStep = 1;                               // current step of configuration
 String lastTimeUpdate = "";                     // storing last updated time on LCD - to not refresh LCD to often
 unsigned long lastBacklightOpen = 0;            // stored time when LCD backlight was opened
 unsigned int backlightDuration = 30000;         // the duration of LCD backlight turn on time in miliseconds (30s)
-unsigned long lastEditModeChange = 0;           // stored time when user done some interaction in edit mode - auto cancel edit mode after timout
-unsigned int editModeAutoExitDuration = 60000;  // the duration of waiting time in edit mode after which we auto close edit mode withouth changes (60s)
+unsigned long lastEditModeChange = 0;           // stored time when user done some interaction in edit mode - auto cancel edit mode after timeout
+unsigned int editModeAutoExitDuration = 60000;  // the duration of waiting time in edit mode after which we auto close edit mode without changes (60s)
 
 // relay
 int relayDelay = 1500;  // open state of relay delay
@@ -145,7 +145,7 @@ void loop() {
   if (editMode) {
     // check auto exit edit mode timeout already passed
     unsigned long currentMillis = millis();
-    if ((currentMillis - lastEditModeChange) >= editModeAutoExitDuration) {  // auto exit edit mode after no itteraction timeout
+    if ((currentMillis - lastEditModeChange) >= editModeAutoExitDuration) {  // auto exit edit mode after no interaction timeout
       exitEditMode(false);
     }
   } else {
@@ -240,7 +240,7 @@ bool turnTheClock() {
   return false;
 }
 
-// on user interaction turn on LCD backlight and remenber time light turned on so that we can turn off after timeout
+// on user interaction turn on LCD backlight and remember time light turned on so that we can turn off after timeout
 void showBacklight() {
   lastBacklightOpen = millis();
   digitalWrite(BACKLIGHT_PIN, HIGH);
@@ -746,5 +746,5 @@ bool checkIsSummerTime() {
   if (month == 3) return previousSunday >= 25;
   if (month == 10) return previousSunday < 25;
 
-  return false;  // this line never gonna happend
+  return false;  // this line never gonna happened
 }
