@@ -2,7 +2,7 @@
 
 ## **Introduction**
 
-Controlling the clock in a church tower with an arduino microcontroller using a real time clock (RTC) module that stores and returns the correct time. The controller attempts to synchronise the time of the clock in the tower with the system time of the controller. Every full minute, the tower clock must be moved forward so that the AC motor is running. The motor is triggered by the opening of a relay. The tower clock shall be stopped, if there is no power in the mains to turn the motor. The clock in the tower will synchronise when we have power from the grid again.
+Controlling the clock in a church tower with an arduino micro controller using a real time clock (RTC) module that stores and returns the correct time. The controller attempts to synchronize the time of the clock in the tower with the system time of the controller. Every full minute, the tower clock must be moved forward so that the AC motor is running. The motor is triggered by the opening of a relay. The tower clock shall be stopped, if there is no power in the mains to turn the motor. The clock in the tower will synchronize when we have power from the grid again.
 
 Program is taking into consideration also the rules for Daylight Saving Time (DST) in Europe. On the last Sunday in March, time moves forward one hour from 2:00 to 3:00 and on the last Sunday in October, time moves back from 3:00 to 2:00. When the time moves forward, the tower clock will catch the correct time. When the time moves back, the tower clock will wait one hour.
 
@@ -20,7 +20,7 @@ Wiring diagram how to connect all required components.
 
 ## **Construction**
 
-Connect all required components with Arduino Nano microcontroller and enclose in appropriate housing.
+Connect all required components with Arduino Nano micro controller and enclose in appropriate housing.
 
 ![image](https://github.com/avgustint/tower-clock/blob/main/images/controller/IMG_0013.jpeg)
 
@@ -34,7 +34,7 @@ Connect all required components with Arduino Nano microcontroller and enclose in
 
 Instruction how to setup the controller with the correct time and current tower time.
 
-Press the rotary encoder button to enter setup mode when on date or time screen. When enterring setup mode wizard starts to enter all required values step by step. Each click navigate wizard to the next configuration step. All inputed values are stored when confirming last step (relay delay). Confirm last step on full minute time to have exact time on seconds level. Rotate the rotary encoder button to change the values.
+Press the rotary encoder button to enter setup mode when on date or time screen. When entering setup mode wizard starts to enter all required values step by step. Each click navigate wizard to the next configuration step. All inputted values are stored when confirming last step (relay delay). Confirm last step on full minute time to have exact time on seconds level. Rotate the rotary encoder button to change the values.
 
 Step 1: Enter correct controller system hour.
 ![image](https://github.com/avgustint/tower-clock/blob/main/images/controller/IMG_9997.jpeg)
@@ -60,20 +60,20 @@ Step 7: Enter tower clock current hour
 Step 8: Enter tower clock current minute
 ![image](https://github.com/avgustint/tower-clock/blob/main/images/controller/IMG_0007.jpeg)
 
-Step 9: Enter relay opening state delay in miliseconds in step of 10 miliseconds.
+Step 9: Enter relay opening state delay in milliseconds in step of 10 milliseconds.
 ![image](https://github.com/avgustint/tower-clock/blob/main/images/controller/IMG_0008.jpeg)
 
-Step 10: Enter motor rotating wait time after triggering the relay in miliseconds in step of 10 miliseconds.
+Step 10: Enter motor rotating wait time after triggering the relay in milliseconds in step of 10 milliseconds.
 ![image](https://github.com/avgustint/tower-clock/blob/main/images/controller/IMG_0021.jpeg)
 
 Step 11: Confirm or Cancel inserted values to take affect.
 ![image](https://github.com/avgustint/tower-clock/blob/main/images/controller/IMG_0022.jpeg)
 
-On confirming last step, values are stored and set. New time is now used and controller returns to normal operational mode. If user does not finish the setup process, then controller returns to normal operation after timeout (60 seconds) since last user interaction. This prevents staying in edit mode when user just accidently clicks on encoder button. In edit mode relay trigger does not operate and tower clock would be stopped.
+On confirming last step, values are stored and set. New time is now used and controller returns to normal operational mode. If user does not finish the setup process, then controller returns to normal operation after timeout (60 seconds) since last user interaction. This prevents staying in edit mode when user just accidentally clicks on encoder button. In edit mode relay trigger does not operate and tower clock would be stopped.
 
 ## **Usage**
 
-When conttroller operates in normal mode, you can use rottary encoder button to display different information on LCD screen. When user interact with button, LCD backlight is switched on and remains on for 30 seconds from the last interaction. Following screens are available:
+When controller operates in normal mode, you can use rotary encoder button to display different information on LCD screen. When user interact with button, LCD backlight is switched on and remains on for 30 seconds from the last interaction. Following screens are available:
 
 Showing current controller time and day of week.
 ![image](https://github.com/avgustint/tower-clock/blob/main/images/controller/IMG_9987.jpeg)
@@ -84,10 +84,10 @@ Showing current controller date with Summer/Winter DST.
 Showing current position of clock indicators on tower.
 ![image](https://github.com/avgustint/tower-clock/blob/main/images/controller/IMG_9989.jpeg)
 
-Display relay open state duration in miliseconds. 
+Display relay open state duration in milliseconds. 
 ![image](https://github.com/avgustint/tower-clock/blob/main/images/controller/IMG_9990.jpeg)
 
-Display motor rotating wait time in miliseconds
+Display motor rotating wait time in milliseconds
 ![image](https://github.com/avgustint/tower-clock/blob/main/images/controller/IMG_0017.jpeg)
 
 Display current temperature from Real Time Clock module. 
@@ -156,7 +156,7 @@ Switch closeup
 
 ## **Future improvements**
 
-* Replace mechanical relay module with mosfet
+* Replace mechanical relay module with Mosfet
 * Add Lora remote diagnostic and configuration options. Option to remote setup exact time from NTP server.
 
 
