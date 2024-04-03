@@ -115,13 +115,13 @@ void setup() {
   pinMode(RELAY_PIN, OUTPUT);
   pinMode(POWER_CHECK_PIN, INPUT);
   pinMode(BACKLIGHT_PIN, OUTPUT);
-  debouncerSwitch.attach(SW_PIN);  // Attach to the rotary encoder press pin
-  debouncerSwitch.interval(2);   // Set debounce interval (in milliseconds)
-  debouncerClk.attach(CLK_PIN);    // Attach to the rotary encoder clock pin
-  debouncerClk.interval(2);        // Set debounce interval (in milliseconds)
-  digitalWrite(RELAY_PIN, HIGH);   // turn off the relay
-  getCurrentTime();                // read current time from RTC module
-  isSummerTime = checkIsSummerTime();             // check if currently is Summer or Winter time depending to DST rules
+  debouncerSwitch.attach(SW_PIN);      // Attach to the rotary encoder press pin
+  debouncerSwitch.interval(2);         // Set debounce interval (in milliseconds)
+  debouncerClk.attach(CLK_PIN);        // Attach to the rotary encoder clock pin
+  debouncerClk.interval(2);            // Set debounce interval (in milliseconds)
+  digitalWrite(RELAY_PIN, HIGH);       // turn off the relay
+  getCurrentTime();                    // read current time from RTC module
+  isSummerTime = checkIsSummerTime();  // check if currently is Summer or Winter time depending to DST rules
   // initialize tower clock on same as current time  - will be set correctly in edit mode - here just to prevent rotating the tower clock
   towerHour = hour;
   towerMinute = minute;
@@ -259,7 +259,7 @@ void checkLcdBacklight() {
 
 // show message that motor in in the operation and rotating the clock indicators
 void showOperationMessage() {
-  displayLcdMessage("Motor rotating..","Tower time "+getFormatedShortTime(towerHour, towerMinute));
+  displayLcdMessage("Motor rotating..", "Tower time " + getFormatedShortTime(towerHour, towerMinute));
 }
 
 // increment one minute of tower clock
@@ -317,7 +317,7 @@ void encoderRotated() {
       } else if (editStep == 3) {
         // update the system time year - changing only last 2 digits
         edit_year = edit_year + change;
-        edit_year = checkRange(edit_year, 24, 99); // minimum year can be current year 2024
+        edit_year = checkRange(edit_year, 24, 99);  // minimum year can be current year 2024
       } else if (editStep == 4) {
         // changing the day of week
         edit_dayOfWeek = edit_dayOfWeek + change;
@@ -354,8 +354,8 @@ void encoderRotated() {
   showBacklight();  // turn the lcd backlight on
 }
 
-// check changed value is inside the range 
-int checkRange(int value, int minValue, int maxValue){
+// check changed value is inside the range
+int checkRange(int value, int minValue, int maxValue) {
   if (value > maxValue) {
     value = minValue;
   } else if (value < minValue) {
@@ -472,94 +472,94 @@ void updateDisplay() {
     if (currentPage == "sysTime") {
       if (editStep == 1) {
         // configuring system time hour
-        displayLcdMessage("Set System Hour",String(edit_hour));
+        displayLcdMessage("Set System Hour", String(edit_hour));
       } else if (editStep == 2) {
         // configuring system time minutes
-        displayLcdMessage("Set System Min.",String(edit_minute));
+        displayLcdMessage("Set System Min.", String(edit_minute));
       }
     } else if (currentPage == "sysDate") {
       if (editStep == 1) {
         // configuring system time day
-        displayLcdMessage("Set System Day",String(edit_day));
+        displayLcdMessage("Set System Day", String(edit_day));
       } else if (editStep == 2) {
         // configuring system time month
-        displayLcdMessage("Set System Month",String(edit_month));
+        displayLcdMessage("Set System Month", String(edit_month));
       } else if (editStep == 3) {
         // configuring system time year
-        displayLcdMessage("Set System Year",String(edit_year));
+        displayLcdMessage("Set System Year", String(edit_year));
       } else if (editStep == 4) {
         // configuring day of week - Monday, Tuesday,...
-        displayLcdMessage("Set Day Of Week",getWeekDayName(edit_dayOfWeek));
+        displayLcdMessage("Set Day Of Week", getWeekDayName(edit_dayOfWeek));
       }
     } else if (currentPage == "towerTime") {
       if (editStep == 1) {
         // configuring tower clock hour
-        displayLcdMessage("Set Tower Hour",String(edit_towerHour));
+        displayLcdMessage("Set Tower Hour", String(edit_towerHour));
       } else if (editStep == 2) {
         // configuring tower clock minutes
-        displayLcdMessage("Set Tower Min.",String(edit_towerMinute));
+        displayLcdMessage("Set Tower Min.", String(edit_towerMinute));
       }
     } else if (currentPage == "delay") {
       // configuring relay open state delay
-      displayLcdMessage("Set Relay Delay",String(edit_relayDelay));
+      displayLcdMessage("Set Relay Delay", String(edit_relayDelay));
     } else if (currentPage == "wait") {
       if (editStep == 1) {
         // configuring motor wait time
-        displayLcdMessage("Set Motor Delay",String(edit_waitDelay));
+        displayLcdMessage("Set Motor Delay", String(edit_waitDelay));
       } else {
-        displayLcdMessage("Confirm changes?",confirmationResult ? "Yes" : "No");
+        displayLcdMessage("Confirm changes?", confirmationResult ? "Yes" : "No");
       }
     }
   } else {
     // we are in normal mode operation
     if (currentPage == "sysTime") {
       // display current system time and day of week
-      displayLcdMessage("System Time",getFormatedTime(hour, minute, second) + " " + getWeekDayName(dayOfWeek));
+      displayLcdMessage("System Time", getFormatedTime(hour, minute, second) + " " + getWeekDayName(dayOfWeek));
     } else if (currentPage == "sysDate") {
       // display current system date and Summer or Winter time
-      displayLcdMessage("System Date",getFormatedDate(year, month, day) + " " + (isSummerTime ? "Summ." : "Wint."));
+      displayLcdMessage("System Date", getFormatedDate(year, month, day) + " " + (isSummerTime ? "Summ." : "Wint."));
     } else if (currentPage == "towerTime") {
       // display current tower clock time
-      displayLcdMessage("Tower Time",getFormatedShortTime(towerHour, towerMinute));
+      displayLcdMessage("Tower Time", getFormatedShortTime(towerHour, towerMinute));
     } else if (currentPage == "delay") {
       // display used relay open state delay duration in miliseconds
-      displayLcdMessage("Relay Delay [ms]",String(relayDelay));
+      displayLcdMessage("Relay Delay [ms]", String(relayDelay));
     } else if (currentPage == "wait") {
       // display used relay open state delay duration in miliseconds
-      displayLcdMessage("Motor Wait [ms]",String(waitDelay));
+      displayLcdMessage("Motor Wait [ms]", String(waitDelay));
     } else if (currentPage == "temp") {
       // display current temperature
-      displayLcdMessage("Temperature",getTemp(lastTemp));
+      displayLcdMessage("Temperature", getTemp(lastTemp));
     } else if (currentPage == "minTemp") {
       // display minimum recorded temperature and date time that measured
-      displayLcdMessage("Min. T. " + getTemp(minTemp),minTempDate);
+      displayLcdMessage("Min. T. " + getTemp(minTemp), minTempDate);
     } else if (currentPage == "maxTemp") {
       // display maximum recorded temperature and date time that measured
-      displayLcdMessage("Max. T. " + getTemp(maxTemp),maxTempDate);
+      displayLcdMessage("Max. T. " + getTemp(maxTemp), maxTempDate);
     } else if (currentPage == "power") {
       // display if grid power supply is working
-      displayLcdMessage("Power Supply",isGridPowerOn() ? "Ok" : "Fail");
+      displayLcdMessage("Power Supply", isGridPowerOn() ? "Ok" : "Fail");
     } else if (currentPage == "lastFailure") {
       // display power supply last failure date
-      displayLcdMessage("Last Power Fail.",lastFailureDate != "" ? lastFailureDate : "Never");
+      displayLcdMessage("Last Power Fail.", lastFailureDate != "" ? lastFailureDate : "Never");
     } else if (currentPage == "uptime") {
       // display power supply uptime seconds
-      displayLcdMessage("Uptime Seconds",String(upTimeSeconds));
+      displayLcdMessage("Uptime Seconds", String(upTimeSeconds));
     } else if (currentPage == "downtime") {
       // display power supply down time seconds
-      displayLcdMessage("Downtime Seconds",String(downTimeSeconds));
+      displayLcdMessage("Downtime Seconds", String(downTimeSeconds));
     } else if (currentPage == "lastSetup") {
       // display power supply down time seconds
-      displayLcdMessage("Last Setup",lastTimeSetup);
+      displayLcdMessage("Last Setup", lastTimeSetup);
     } else if (currentPage == "lastReset") {
       // display power supply down time seconds
-      displayLcdMessage("Last Startup",lastTimeStartup);
+      displayLcdMessage("Last Startup", lastTimeStartup);
     }
   }
 }
 
 // display 2 line message on LCD screen
-displayLcdMessage(String line1, String line2){
+void displayLcdMessage(String line1, String line2) {
   // clear the complete LCD screen
   lcd.clear();
   // move to first position on top row
@@ -679,7 +679,7 @@ bool checkIsSummerTime() {
   if (month > 3 && month < 10) return true;
 
   // calculate previous sunday day
-  int previousSunday = day - dayOfWeek % 7; // use different indexes the app 0 - Sunday, 1-Monday,..., 6-Saturday 
+  int previousSunday = day - dayOfWeek % 7;  // use different indexes the app 0 - Sunday, 1-Monday,..., 6-Saturday
 
   if (month == 3) return previousSunday >= 25;
   if (month == 10) return previousSunday < 25;
