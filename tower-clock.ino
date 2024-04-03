@@ -77,10 +77,18 @@ int edit_towerHour = 0;
 int edit_towerMinute = 0;
 int edit_relayDelay = 1500;
 int edit_waitDelay = 5000;
+int edit_compensateAfterDays = 0;
+int edit_compensateSeconds = 0;
+
+// RTC module self compensation
+int compensateAfterDays = 0;
+int compensateSeconds = 0;  // possible values -1s, 0 or +1s
+unsigned long secondsElapsedSinceLastCompensation = 0;
+String lastTimeCompensated = "Never";
 
 // app
-const int NUM_OF_PAGES = 14;
-String screenPages[NUM_OF_PAGES] = { "sysTime", "sysDate", "towerTime", "delay", "wait", "temp", "minTemp", "maxTemp", "power", "lastFailure", "uptime", "downtime", "lastSetup", "lastReset" };
+const int NUM_OF_PAGES = 16;
+String screenPages[NUM_OF_PAGES] = { "sysTime", "sysDate", "towerTime", "compensate", "delay", "wait", "temp", "minTemp", "maxTemp", "power", "lastFailure", "uptime", "downtime", "lastSetup", "lastReset", "lastCompensate" };
 int currentPageIndex = 0;                       // current selected page to show on LCD
 bool editMode = false;                          // are we in edit mode flag
 int editStep = 1;                               // current step of configuration for each screen
@@ -152,9 +160,10 @@ void loop() {
       exitEditMode(false);
     }
   } else {
-    getCurrentTime();        // read current time from RTC module
-    updateScreenDateTime();  // check need to update the LCD screen
-    updateTowerClock();      // check need to update tower clock
+    getCurrentTime();             // read current time from RTC module
+    updateScreenDateTime();       // check need to update the LCD screen
+    updateTowerClock();           // check need to update tower clock
+    checkNeedToCompensateTime();  // check any setting to self adjust time in RTC module
   }
 
   checkLcdBacklight();  // check need to turn off the LCD backlight
@@ -178,6 +187,7 @@ void updateScreenDateTime() {
   // get the current date time
   String currentTime = getFormatedDate(year, month, day) + " " + getFormatedTime(hour, minute, second);
   if (lastTimeUpdate != currentTime) {
+    secondsElapsedSinceLastCompensation++;
     if (isGridPowerOn()) {
       upTimeSeconds++;
     } else {
@@ -333,6 +343,14 @@ void encoderRotated() {
         edit_towerMinute = edit_towerMinute + change;
         edit_towerMinute = checkRange(edit_towerMinute, 0, 59);
       }
+    } else if (currentPage == "compensate") {
+      if (editStep == 1) {
+        edit_compensateAfterDays = edit_compensateAfterDays + change;
+        edit_compensateAfterDays = checkRange(edit_compensateAfterDays, 0, 365);
+      } else {
+        edit_compensateSeconds = edit_compensateSeconds + change;
+        edit_compensateSeconds = checkRange(edit_compensateSeconds, -1, 1);
+      }
     } else if (currentPage == "delay") {
       // updating the relay open state duration
       edit_relayDelay = edit_relayDelay + (change * 10);
@@ -346,6 +364,7 @@ void encoderRotated() {
         confirmationResult = !confirmationResult;
       }
     }
+
   } else {
     changeScreen(change);  // when not in edit mode, just show next/previous screen
   }
@@ -398,6 +417,12 @@ void encoderPressed() {
       if (editStep == 3) {
         // on last step on setting tower time
         currentPageIndex = currentPageIndex + 1;
+        editStep = 1;  // moving to the compensation setup
+      }
+    } else if (currentPage == "compensate") {
+      if (editStep == 3) {
+        // on last step on compensate settings
+        currentPageIndex = currentPageIndex + 1;
         editStep = 1;  // moving to the delay setup
       }
     } else if (currentPage == "delay") {
@@ -419,6 +444,9 @@ void encoderPressed() {
           towerMinute = edit_towerMinute;
           relayDelay = edit_relayDelay;
           waitDelay = edit_waitDelay;
+          compensateAfterDays = edit_compensateAfterDays;
+          compensateSeconds = edit_compensateSeconds;
+          secondsElapsedSinceLastCompensation = 0;
           isSummerTime = checkIsSummerTime();
           lastTimeSetup = getFormatedDate(edit_year, edit_month, edit_day) + " " + getFormatedShortTime(edit_hour, edit_minute);
           exitEditMode(true);  //move to normal operational mode
@@ -451,6 +479,8 @@ void enterEditMode() {
   edit_towerMinute = towerMinute;
   edit_relayDelay = relayDelay;
   edit_waitDelay = waitDelay;
+  edit_compensateAfterDays = compensateAfterDays;
+  edit_compensateSeconds = compensateSeconds;
 }
 
 // user exited the the edit mode - reinitialize some variables
@@ -486,7 +516,7 @@ void updateDisplay() {
         displayLcdMessage("Set System Month", String(edit_month));
       } else if (editStep == 3) {
         // configuring system time year
-        displayLcdMessage("Set System Year", String(edit_year));
+        displayLcdMessage("Set System Year", "20"+String(edit_year));
       } else if (editStep == 4) {
         // configuring day of week - Monday, Tuesday,...
         displayLcdMessage("Set Day Of Week", getWeekDayName(edit_dayOfWeek));
@@ -498,6 +528,14 @@ void updateDisplay() {
       } else if (editStep == 2) {
         // configuring tower clock minutes
         displayLcdMessage("Set Tower Min.", String(edit_towerMinute));
+      }
+    } else if (currentPage == "compensate") {
+      if (editStep == 1) {
+        // configuring tower clock hour
+        displayLcdMessage("Compensate Time", "After days: " + String(edit_compensateAfterDays));
+      } else if (editStep == 2) {
+        // configuring tower clock minutes
+        displayLcdMessage("Compensate", "Seconds: " + String(edit_compensateSeconds));
       }
     } else if (currentPage == "delay") {
       // configuring relay open state delay
@@ -521,6 +559,9 @@ void updateDisplay() {
     } else if (currentPage == "towerTime") {
       // display current tower clock time
       displayLcdMessage("Tower Time", getFormatedShortTime(towerHour, towerMinute));
+    } else if (currentPage == "compensate") {
+      // display current tower clock time
+      displayLcdMessage("Compensate after", String(compensateAfterDays) + " days " + String(compensateSeconds) + " sec");
     } else if (currentPage == "delay") {
       // display used relay open state delay duration in miliseconds
       displayLcdMessage("Relay Delay [ms]", String(relayDelay));
@@ -554,6 +595,9 @@ void updateDisplay() {
     } else if (currentPage == "lastReset") {
       // display power supply down time seconds
       displayLcdMessage("Last Startup", lastTimeStartup);
+    } else if (currentPage == "lastCompensate") {
+      // display power supply down time seconds
+      displayLcdMessage("Last Compensate", lastTimeCompensated);
     }
   }
 }
@@ -685,4 +729,20 @@ bool checkIsSummerTime() {
   if (month == 10) return previousSunday < 25;
 
   return false;  // this line never gonna happened
+}
+
+// check there is setting for self adjustment for the time in RTC module and time already passed since last adjustment
+void checkNeedToCompensateTime() {
+  if (compensateAfterDays > 0 && compensateSeconds != 0 && second == 30) {  // compensate only in the middle of minute to prevent overflow to next minute, hour, day, month or even year
+    if (secondsElapsedSinceLastCompensation > (compensateAfterDays * 1440 * 60)) {
+      secondsElapsedSinceLastCompensation = 0;
+      if (compensateSeconds > 0) {
+        second++;
+      } else {
+        second--;
+      }
+      myRTC.setSecond(second);
+      lastTimeCompensated = getFormatedDate(year, month, day) + " " + getFormatedShortTime(hour, minute);
+    }
+  }
 }
