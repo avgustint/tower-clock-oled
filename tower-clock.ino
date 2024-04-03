@@ -259,11 +259,7 @@ void checkLcdBacklight() {
 
 // show message that motor in in the operation and rotating the clock indicators
 void showOperationMessage() {
-  lcd.clear();
-  lcd.setCursor(0, 0);
-  lcd.print("Motor rotating..");
-  lcd.setCursor(0, 1);
-  lcd.print("Tower time "+getFormatedShortTime(towerHour, towerMinute));
+  displayLcdMessage("Motor rotating..","Tower time "+getFormatedShortTime(towerHour, towerMinute));
 }
 
 // increment one minute of tower clock
