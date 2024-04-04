@@ -158,8 +158,8 @@ void loop() {
 
   if (editMode) {
     // check auto exit edit mode timeout already passed
-    if (checkTimeoutExpired(lastEditModeChange,editModeAutoExitDuration)){
-      exitEditMode(false); // auto exit edit mode after no interaction timeout
+    if (checkTimeoutExpired(lastEditModeChange, editModeAutoExitDuration)) {
+      exitEditMode(false);  // auto exit edit mode after no interaction timeout
     }
   } else {
     getCurrentTime();             // read current time from RTC module
@@ -167,8 +167,8 @@ void loop() {
     updateTowerClock();           // check need to update tower clock
     checkNeedToCompensateTime();  // check any setting to self adjust time in RTC module
   }
-  checkCloseMotorRelay();         // check we need to close the relay
-  checkLcdBacklight();            // check need to turn off the LCD backlight
+  checkCloseMotorRelay();  // check we need to close the relay
+  checkLcdBacklight();     // check need to turn off the LCD backlight
 }
 
 // read the current time from the RTC module
@@ -199,7 +199,7 @@ void updateScreenDateTime() {
     lastTimeUpdate = currentTime;
     String currentPage = screenPages[currentPageIndex];
     // update the lcd only if date time changed and showing hour screen
-    if (currentPage == "sysTime" || currentPage == "uptime" || currentPage == "downtime") {
+    if ((currentPage == "sysTime" || currentPage == "uptime" || currentPage == "downtime") && !motorRotating && !motorRelayOpen) {
       updateDisplay();
     }
   }
@@ -244,26 +244,26 @@ void turnTheClock() {
   // check we have power supply and not running on battery - when there is no power we can not run the motor
   // check also not already in motor rotating state
   if (!motorRelayOpen && !motorRotating && isGridPowerOn()) {
-    incrementTowerClock();          // increment the tower time fist to display correct new time on lcd screen
-    showOperationMessage();         // show message on lcd screen that motor is operation
-    motorRotating = true;           // set variable that motor is in rotating state
-    motorRelayOpen = true;          // set variable that relay is currently open
-    motorOpenStart = millis();      // store time when we start rotating the motor to stop after timeout
-    digitalWrite(RELAY_PIN, LOW);   // open relay - keep relay open for the delay setup in settings
+    incrementTowerClock();         // increment the tower time fist to display correct new time on lcd screen
+    showOperationMessage();        // show message on lcd screen that motor is operation
+    motorRotating = true;          // set variable that motor is in rotating state
+    motorRelayOpen = true;         // set variable that relay is currently open
+    motorOpenStart = millis();     // store time when we start rotating the motor to stop after timeout
+    digitalWrite(RELAY_PIN, LOW);  // open relay - keep relay open for the delay setup in settings
   }
 }
 
 // check if we need to close the relay or motor stopped rotating
 // calculate time difference instead of using the delays
 // do not trigger the relay for next 5 seconds - to not rotate too quickly when hour change on DST also motor is rotating longer then relay is open - motor is having own relay to turn off when rotated enough
-void checkCloseMotorRelay(){
-  if (motorRelayOpen && checkTimeoutExpired(motorOpenStart,relayDelay)){
+void checkCloseMotorRelay() {
+  if (motorRelayOpen && checkTimeoutExpired(motorOpenStart, relayDelay)) {
     digitalWrite(RELAY_PIN, HIGH);  // close relay
     motorRelayOpen = false;
   }
-  if (motorRotating && checkTimeoutExpired(motorOpenStart,waitDelay)){
+  if (motorRotating && checkTimeoutExpired(motorOpenStart, waitDelay)) {
     motorRotating = false;
-    updateDisplay();                // update the display with new tower time and removing operational message
+    updateDisplay();  // update the display with new tower time and removing operational message
   }
 }
 
@@ -275,15 +275,15 @@ void showBacklight() {
 
 // check LCD backlight is in timeout and we need to turn off the backlight
 void checkLcdBacklight() {
-  if (checkTimeoutExpired(lastBacklightOpen,backlightDuration)){
+  if (checkTimeoutExpired(lastBacklightOpen, backlightDuration)) {
     digitalWrite(BACKLIGHT_PIN, LOW);
   }
 }
 
 // common function to check if different timeouts already expired from last change
-bool checkTimeoutExpired(unsigned long lastChange, unsigned long timeoutDuration){
+bool checkTimeoutExpired(unsigned long lastChange, unsigned long timeoutDuration) {
   unsigned long currentMillis = millis();
-  return ((currentMillis - lastChange) >= timeoutDuration); 
+  return ((currentMillis - lastChange) >= timeoutDuration);
 }
 
 // show message that motor in in the operation and rotating the clock indicators
@@ -535,7 +535,7 @@ void updateDisplay() {
         displayLcdMessage("Set System Month", String(edit_month));
       } else if (editStep == 3) {
         // configuring system time year
-        displayLcdMessage("Set System Year", "20"+String(edit_year));
+        displayLcdMessage("Set System Year", "20" + String(edit_year));
       } else if (editStep == 4) {
         // configuring day of week - Monday, Tuesday,...
         displayLcdMessage("Set Day Of Week", getWeekDayName(edit_dayOfWeek));
