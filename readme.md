@@ -48,8 +48,8 @@ Step 3: Enter current day of month.
 Step 4: Enter current month.
 ![image](https://github.com/avgustint/tower-clock/blob/main/images/controller/IMG_0002.jpeg)
 
-Step 5: Enter current year. Only last 2 digits of current century.
-![image](https://github.com/avgustint/tower-clock/blob/main/images/controller/IMG_0003.jpeg)
+Step 5: Enter current year. Possible to insert in range from 2024 and 2099.
+![image](https://github.com/avgustint/tower-clock/blob/main/images/controller/IMG_0026.jpeg)
 
 Step 6: Enter day of the week (Monday, Tuesday, Wednesday,...)
 ![image](https://github.com/avgustint/tower-clock/blob/main/images/controller/IMG_0004.jpeg)
@@ -110,6 +110,12 @@ Display total uptime in seconds
 
 Display total downtime in seconds
 ![image](https://github.com/avgustint/tower-clock/blob/main/images/controller/IMG_0020.jpeg)
+
+Display last time any setting or clock has been adjusted
+![image](https://github.com/avgustint/tower-clock/blob/main/images/controller/IMG_0024.jpeg)
+
+Display last time controller was reset or startup. If RTC time was never configured before then this time can be wrong.
+![image](https://github.com/avgustint/tower-clock/blob/main/images/controller/IMG_0025.jpeg)
 
 ## **Components**
 
