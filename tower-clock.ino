@@ -99,6 +99,9 @@ unsigned long lastBacklightOpen = 0;            // stored time when LCD backligh
 unsigned int backlightDuration = 30000;         // the duration of LCD backlight turn on time in miliseconds (30s)
 unsigned long lastEditModeChange = 0;           // stored time when user done some interaction in edit mode - auto cancel edit mode after timeout
 unsigned int editModeAutoExitDuration = 60000;  // the duration of waiting time in edit mode after which we auto close edit mode without changes (60s)
+bool motorRotating = false;                     // is motor currently rotating
+bool motorRelayOpen = false;                    // is relay to start motor currently open
+unsigned long motorOpenStart = 0;               // when motor started to rotate
 
 // relay
 int relayDelay = 1500;  // open state of relay delay
@@ -155,9 +158,8 @@ void loop() {
 
   if (editMode) {
     // check auto exit edit mode timeout already passed
-    unsigned long currentMillis = millis();
-    if ((currentMillis - lastEditModeChange) >= editModeAutoExitDuration) {  // auto exit edit mode after no interaction timeout
-      exitEditMode(false);
+    if (checkTimeoutExpired(lastEditModeChange,editModeAutoExitDuration)){
+      exitEditMode(false); // auto exit edit mode after no interaction timeout
     }
   } else {
     getCurrentTime();             // read current time from RTC module
@@ -165,8 +167,8 @@ void loop() {
     updateTowerClock();           // check need to update tower clock
     checkNeedToCompensateTime();  // check any setting to self adjust time in RTC module
   }
-
-  checkLcdBacklight();  // check need to turn off the LCD backlight
+  checkCloseMotorRelay();         // check we need to close the relay
+  checkLcdBacklight();            // check need to turn off the LCD backlight
 }
 
 // read the current time from the RTC module
@@ -238,19 +240,31 @@ void updateTowerClock() {
 }
 
 // Turn the tower clock if there is power supply from grid, because otherwise motor will not rotate when relay is triggered
-bool turnTheClock() {
+void turnTheClock() {
   // check we have power supply and not running on battery - when there is no power we can not run the motor
-  if (isGridPowerOn()) {
+  // check also not already in motor rotating state
+  if (!motorRelayOpen && !motorRotating && isGridPowerOn()) {
     incrementTowerClock();          // increment the tower time fist to display correct new time on lcd screen
     showOperationMessage();         // show message on lcd screen that motor is operation
-    digitalWrite(RELAY_PIN, LOW);   // open relay
-    delay(relayDelay);              // keep relay open for the delay setup in settings
-    digitalWrite(RELAY_PIN, HIGH);  // close relay
-    delay(waitDelay);               // do not trigger the relay for next 5 seconds - to not rotate too quickly when hour change on DST also motor is rotating longer then relay is open - motor is having own relay to turn off when rotated enough
-    updateDisplay();                // update the display with new tower time and removing operational message
-    return true;
+    motorRotating = true;           // set variable that motor is in rotating state
+    motorRelayOpen = true;          // set variable that relay is currently open
+    motorOpenStart = millis();      // store time when we start rotating the motor to stop after timeout
+    digitalWrite(RELAY_PIN, LOW);   // open relay - keep relay open for the delay setup in settings
   }
-  return false;
+}
+
+// check if we need to close the relay or motor stopped rotating
+// calculate time difference instead of using the delays
+// do not trigger the relay for next 5 seconds - to not rotate too quickly when hour change on DST also motor is rotating longer then relay is open - motor is having own relay to turn off when rotated enough
+void checkCloseMotorRelay(){
+  if (motorRelayOpen && checkTimeoutExpired(motorOpenStart,relayDelay)){
+    digitalWrite(RELAY_PIN, HIGH);  // close relay
+    motorRelayOpen = false;
+  }
+  if (motorRotating && checkTimeoutExpired(motorOpenStart,waitDelay)){
+    motorRotating = false;
+    updateDisplay();                // update the display with new tower time and removing operational message
+  }
 }
 
 // on user interaction turn on LCD backlight and remember time light turned on so that we can turn off after timeout
@@ -261,10 +275,15 @@ void showBacklight() {
 
 // check LCD backlight is in timeout and we need to turn off the backlight
 void checkLcdBacklight() {
-  unsigned long currentMillis = millis();
-  if (currentMillis - lastBacklightOpen >= backlightDuration) {  // close the backlight after 30 seconds
+  if (checkTimeoutExpired(lastBacklightOpen,backlightDuration)){
     digitalWrite(BACKLIGHT_PIN, LOW);
   }
+}
+
+// common function to check if different timeouts already expired from last change
+bool checkTimeoutExpired(unsigned long lastChange, unsigned long timeoutDuration){
+  unsigned long currentMillis = millis();
+  return ((currentMillis - lastChange) >= timeoutDuration); 
 }
 
 // show message that motor in in the operation and rotating the clock indicators
