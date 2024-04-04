@@ -117,6 +117,9 @@ Display last time any setting or clock has been adjusted
 Display last time controller was reset or startup. If RTC time was never configured before then this time can be wrong.
 ![image](https://github.com/avgustint/tower-clock/blob/main/images/controller/IMG_0025.jpeg)
 
+While we are rotating the motor on full minute, following message is displayed with new tower time.
+![image](https://github.com/avgustint/tower-clock/blob/main/images/controller/IMG_0027.jpeg)
+
 ## **Components**
 
 ### Controller Arduino Nano
