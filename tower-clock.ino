@@ -79,18 +79,21 @@ int edit_relayDelay = 1500;
 int edit_waitDelay = 5000;
 int edit_compensateAfterDays = 0;
 int edit_compensateSeconds = 0;
+bool confirmReset = false;
 
 // RTC module self compensation
 int compensateAfterDays = 0;
 int compensateSeconds = 0;  // possible values -1s, 0 or +1s
 unsigned long secondsElapsedSinceLastCompensation = 0;
 String lastTimeCompensated = "Never";
+int totalSecondsCompensated = 0;
 
 // app
-const int NUM_OF_PAGES = 16;
-String screenPages[NUM_OF_PAGES] = { "sysTime", "sysDate", "towerTime", "compensate", "delay", "wait", "temp", "minTemp", "maxTemp", "power", "lastFailure", "uptime", "downtime", "lastSetup", "lastReset", "lastCompensate" };
+const int NUM_OF_PAGES = 18;
+String screenPages[NUM_OF_PAGES] = { "sysTime", "sysDate", "towerTime", "compensate", "delay", "wait", "temp", "minTemp", "maxTemp", "power", "lastFailure", "uptime", "downtime", "lastSetup", "lastReset", "lastCompensate","sinceLastCompensate","totalCompensated" };
 int currentPageIndex = 0;                       // current selected page to show on LCD
 bool editMode = false;                          // are we in edit mode flag
+bool resetMode = false;                         // are we in reset mode flag
 int editStep = 1;                               // current step of configuration for each screen
 String lastTimeUpdate = "";                     // storing last updated time on LCD - to not refresh LCD to often
 String lastTimeSetup = "Unknown";               // storing when we updated the date and time last time - info purposes only to check how accurate is RTC module over time
@@ -199,7 +202,7 @@ void updateScreenDateTime() {
     lastTimeUpdate = currentTime;
     String currentPage = screenPages[currentPageIndex];
     // update the lcd only if date time changed and showing hour screen
-    if ((currentPage == "sysTime" || currentPage == "uptime" || currentPage == "downtime") && !motorRotating && !motorRelayOpen) {
+    if ((currentPage == "sysTime" || currentPage == "uptime" || currentPage == "downtime" || currentPage == "sinceLastCompensate") && !motorRotating && !motorRelayOpen) {
       updateDisplay();
     }
   }
@@ -384,6 +387,8 @@ void encoderRotated() {
       }
     }
 
+  } else if (resetMode == true) {
+    confirmReset = !confirmReset;
   } else {
     changeScreen(change);  // when not in edit mode, just show next/previous screen
   }
@@ -474,9 +479,28 @@ void encoderPressed() {
         }
       }
     }
+  } else if (resetMode == true){
+    if (confirmReset){
+      resetFunc();
+    }
+    else{
+      resetMode = false;
+      editStep = 1;
+      lcd.clear();
+      lcd.setCursor(0, 0);
+      lcd.print("Cancelled!");
+      delay(500);
+    }
   } else {
-    // currently not in edit mode and button pressed
-    enterEditMode();
+    if (currentPage == "lastReset"){
+      resetMode = true;
+      editStep = 1;
+      confirmReset = false;
+    }
+    else{
+      // currently not in edit mode and button pressed
+      enterEditMode();
+    }
   }
   updateDisplay();  // update the LCD display with new values
 }
@@ -567,7 +591,9 @@ void updateDisplay() {
         displayLcdMessage("Confirm changes?", confirmationResult ? "Yes" : "No");
       }
     }
-  } else {
+  } else if (resetMode==true){
+    displayLcdMessage("Reset arduino?", confirmReset ? "Yes" : "No");
+  }else {
     // we are in normal mode operation
     if (currentPage == "sysTime") {
       // display current system time and day of week
@@ -609,14 +635,21 @@ void updateDisplay() {
       // display power supply down time seconds
       displayLcdMessage("Downtime Seconds", String(downTimeSeconds));
     } else if (currentPage == "lastSetup") {
-      // display power supply down time seconds
+      // display last time date and time has been adjusted with setup proces
       displayLcdMessage("Last Setup", lastTimeSetup);
     } else if (currentPage == "lastReset") {
-      // display power supply down time seconds
+      // display since when controller is running, this works well only if RTC has been adjusted before
       displayLcdMessage("Last Startup", lastTimeStartup);
     } else if (currentPage == "lastCompensate") {
-      // display power supply down time seconds
+      // display last date time that clock has been self adjusted 
       displayLcdMessage("Last Compensate", lastTimeCompensated);
+    } else if (currentPage =="sinceLastCompensate"){
+      // display seconds elapsed since last time compensation
+      displayLcdMessage("Last compen. sec", secondsElapsedSinceLastCompensation);
+    } else if (currentPage == "totalCompensated"){
+      // display total amount of seconds that were compensated
+      displayLcdMessage("Total compensat.", totalSecondsCompensated);
+      
     }
   }
 }
@@ -757,11 +790,16 @@ void checkNeedToCompensateTime() {
       secondsElapsedSinceLastCompensation = 0;
       if (compensateSeconds > 0) {
         second++;
+        totalSecondsCompensated++;
       } else {
         second--;
+        totalSecondsCompensated--;
       }
       myRTC.setSecond(second);
       lastTimeCompensated = getFormatedDate(year, month, day) + " " + getFormatedShortTime(hour, minute);
     }
   }
 }
+
+// reset function to have ability to reset Arduino programmatically
+void (*resetFunc) (void) = 0;
