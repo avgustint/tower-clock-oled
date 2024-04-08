@@ -174,6 +174,9 @@ void loop() {
   checkLcdBacklight();     // check need to turn off the LCD backlight
 }
 
+// reset function to have ability to reset Arduino programmatically
+void (*resetFunc) (void) = 0;
+
 // read the current time from the RTC module
 void getCurrentTime() {
   year = myRTC.getYear();
@@ -291,7 +294,8 @@ bool checkTimeoutExpired(unsigned long lastChange, unsigned long timeoutDuration
 
 // show message that motor in in the operation and rotating the clock indicators
 void showOperationMessage() {
-  displayLcdMessage("Motor rotating..", "Tower time " + getFormatedShortTime(towerHour, towerMinute));
+  //displayLcdMessage("Motor rotating..", "Tower time " + getFormatedShortTime(towerHour, towerMinute));
+  displayLcdMessage("Rotating", "Time " + getFormatedShortTime(towerHour, towerMinute) );
 }
 
 // increment one minute of tower clock
@@ -645,10 +649,10 @@ void updateDisplay() {
       displayLcdMessage("Last Compensate", lastTimeCompensated);
     } else if (currentPage =="sinceLastCompensate"){
       // display seconds elapsed since last time compensation
-      displayLcdMessage("Last compen. sec", secondsElapsedSinceLastCompensation);
+      displayLcdMessage("Last compen. sec", String(secondsElapsedSinceLastCompensation));
     } else if (currentPage == "totalCompensated"){
       // display total amount of seconds that were compensated
-      displayLcdMessage("Total compensat.", totalSecondsCompensated);
+      displayLcdMessage("Total compensat.", String(totalSecondsCompensated));
       
     }
   }
@@ -800,6 +804,3 @@ void checkNeedToCompensateTime() {
     }
   }
 }
-
-// reset function to have ability to reset Arduino programmatically
-void (*resetFunc) (void) = 0;
