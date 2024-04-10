@@ -84,6 +84,7 @@ bool confirmReset = false;
 int compensateAfterDays = 0;
 int compensateSeconds = 0;  // possible values -1s, 0 or +1s
 unsigned long secondsElapsedSinceLastCompensation = 0;
+unsigned long secondsToCompensate = 0;
 String lastTimeCompensated = "Never";
 int totalSecondsCompensated = 0;
 
@@ -486,6 +487,7 @@ void encoderPressed() {
             compensateAfterDays = edit_compensateAfterDays;
             compensateSeconds = edit_compensateSeconds;
             secondsElapsedSinceLastCompensation = 0;
+            secondsToCompensate = compensateAfterDays * 86400;
             isSummerTime = checkIsSummerTime();
             lastTimeSetup = getFormatedDate(edit_year, edit_month, edit_day) + " " + getFormatedShortTime(edit_hour, edit_minute);
             exitEditMode(true);  // move to normal operational mode
@@ -832,8 +834,8 @@ bool checkIsSummerTime() {
 
 // check there is setting for self adjustment for the time in RTC module and time already passed since last adjustment
 void checkNeedToCompensateTime() {
-  if (compensateAfterDays > 0 && compensateSeconds != 0 && second == 30) {  // compensate only in the middle of minute to prevent overflow to next minute, hour, day, month or even year
-    if (secondsElapsedSinceLastCompensation > (compensateAfterDays * 86400)) {
+  if ((compensateAfterDays > 0) && (compensateSeconds != 0) && (second == 30)) {  // compensate only in the middle of minute to prevent overflow to next minute, hour, day, month or even year
+    if (secondsElapsedSinceLastCompensation > secondsToCompensate) {
       secondsElapsedSinceLastCompensation = 0;
       if (compensateSeconds > 0) {
         second++;
