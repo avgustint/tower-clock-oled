@@ -126,7 +126,7 @@ Display last time controller compensated time error.
 Display seconds passed since last compensation occured.
 ![image](https://github.com/avgustint/tower-clock/blob/main/images/controller/IMG_0061.jpeg)
 
-Display stotal amount of seconds compensated since last setup.
+Display total amount of seconds compensated since last setup.
 ![image](https://github.com/avgustint/tower-clock/blob/main/images/controller/IMG_0062.jpeg)
 
 While we are rotating the motor on full minute, following message is displayed with new tower time.
