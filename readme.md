@@ -84,6 +84,9 @@ Showing current controller date with Summer/Winter DST.
 Showing current position of clock indicators on tower.
 ![image](https://github.com/avgustint/tower-clock/blob/main/images/controller/IMG_9989.jpeg)
 
+Showing seconds compensation settings if set. How many seconds compensated after specific amount of days. Seconds can be positivie or negative.
+![image](https://github.com/avgustint/tower-clock/blob/main/images/controller/IMG_0059.jpeg)
+
 Display relay open state duration in milliseconds. 
 ![image](https://github.com/avgustint/tower-clock/blob/main/images/controller/IMG_9990.jpeg)
 
@@ -116,6 +119,15 @@ Display last time any setting or clock has been adjusted
 
 Display last time controller was reset or startup. If RTC time was never configured before then this time can be wrong.
 ![image](https://github.com/avgustint/tower-clock/blob/main/images/controller/IMG_0025.jpeg)
+
+Display last time controller compensated time error.
+![image](https://github.com/avgustint/tower-clock/blob/main/images/controller/IMG_0060.jpeg)
+
+Display seconds passed since last compensation occured.
+![image](https://github.com/avgustint/tower-clock/blob/main/images/controller/IMG_0061.jpeg)
+
+Display stotal amount of seconds compensated since last setup.
+![image](https://github.com/avgustint/tower-clock/blob/main/images/controller/IMG_0062.jpeg)
 
 While we are rotating the motor on full minute, following message is displayed with new tower time.
 ![image](https://github.com/avgustint/tower-clock/blob/main/images/controller/IMG_0027.jpeg)
