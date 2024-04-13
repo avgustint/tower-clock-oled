@@ -74,8 +74,8 @@ int edit_minute = 0;
 int edit_dayOfWeek = 1;
 int edit_towerHour = 0;
 int edit_towerMinute = 0;
-int edit_relayDelay = 1500;
-int edit_waitDelay = 5000;
+int edit_relayDelay = 3500;
+int edit_waitDelay = 6000;
 int edit_compensateAfterDays = 0;
 int edit_compensateSeconds = 0;
 bool confirmReset = false;
@@ -105,8 +105,8 @@ int motorState = 0;                             // current state of the motor - 
 unsigned long motorOpenStart = 0;               // when motor started to rotate
 
 // relay
-int relayDelay = 1500;  // open state of relay delay
-int waitDelay = 5000;   // wait time to end motor spinning
+int relayDelay = 3500;  // open state of relay delay
+int waitDelay = 6000;   // wait time to end motor spinning
 
 // initialize objects
 LiquidCrystal lcd(RS_PIN, EN_PIN, D4_PIN, D5_PIN, D6_PIN, D7_PIN);  // declare object for LCD display manipulation
@@ -383,13 +383,13 @@ void encoderRotated() {
       case 4:  // delay
                // updating the relay open state duration
         edit_relayDelay = edit_relayDelay + (change * 10);
-        edit_relayDelay = checkRange(edit_relayDelay, 0, 4990);
+        edit_relayDelay = checkRange(edit_relayDelay, 0, 6990);
         break;
       case 5:  // wait
         // updating the wait motor duration
         if (editStep == 1) {
           edit_waitDelay = edit_waitDelay + (change * 10);
-          edit_waitDelay = checkRange(edit_waitDelay, 0, 4990);
+          edit_waitDelay = checkRange(edit_waitDelay, 0, 9990);
         } else {
           confirmationResult = !confirmationResult;
         }
