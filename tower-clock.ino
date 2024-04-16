@@ -31,7 +31,8 @@
 
 // other pins
 #define POWER_CHECK_PIN 10  // pin for checking power supply
-#define RELAY_PIN 14        // define pin to trigger the relay
+#define RELAY_1_PIN 14      // define pin to trigger the relay 1
+#define RELAY_2_PIN 15      // define pin to trigger the relay 2
 
 // RTC variables
 bool century = false;
@@ -74,8 +75,6 @@ int edit_minute = 0;
 int edit_dayOfWeek = 1;
 int edit_towerHour = 0;
 int edit_towerMinute = 0;
-int edit_relayDelay = 3500;
-int edit_waitDelay = 6000;
 int edit_compensateAfterDays = 0;
 int edit_compensateSeconds = 0;
 bool confirmReset = false;
@@ -89,8 +88,8 @@ String lastTimeCompensated = "Never";
 int totalSecondsCompensated = 0;
 
 // app
-const int NUM_OF_PAGES = 18;
-// String screenPages[NUM_OF_PAGES] = { "sysTime", "sysDate", "towerTime", "compensate", "delay", "wait", "temp", "minTemp", "maxTemp", "power", "lastFailure", "uptime", "downtime", "lastSetup", "lastReset", "lastCompensate","sinceLastCompensate","totalCompensated" };
+const int NUM_OF_PAGES = 16;
+// String screenPages[NUM_OF_PAGES] = { "sysTime", "sysDate", "towerTime", "compensate", "temp", "minTemp", "maxTemp", "power", "lastFailure", "uptime", "downtime", "lastSetup", "lastReset", "lastCompensate","sinceLastCompensate","totalCompensated" };
 int currentPageIndex = 0;                       // current selected page to show on LCD
 int controllerMode = 0;                         // in with mode is currently the controller 0: normal operation, 1: setup or edit mode, 2: reset mode
 int editStep = 1;                               // current step of configuration for each screen
@@ -101,12 +100,12 @@ unsigned long lastBacklightOpen = 0;            // stored time when LCD backligh
 unsigned int backlightDuration = 30000;         // the duration of LCD backlight turn on time in miliseconds (30s)
 unsigned long lastEditModeChange = 0;           // stored time when user done some interaction in edit mode - auto cancel edit mode after timeout
 unsigned int editModeAutoExitDuration = 60000;  // the duration of waiting time in edit mode after which we auto close edit mode without changes (60s)
-int motorState = 0;                             // current state of the motor - 0: still, 1: relay open and rotating, 2 - relay closed and still rotating
+bool motorRotating = false;                     // current state of the motor - true: rotating, false: motor not rotating any more
 unsigned long motorOpenStart = 0;               // when motor started to rotate
+int nextRelayState = 0;                         // next state of relay
 
 // relay
-int relayDelay = 3500;  // open state of relay delay
-int waitDelay = 6000;   // wait time to end motor spinning
+int relayDelay = 5000;  // relay delay betwen next time changing state
 
 // initialize objects
 LiquidCrystal lcd(RS_PIN, EN_PIN, D4_PIN, D5_PIN, D6_PIN, D7_PIN);  // declare object for LCD display manipulation
@@ -124,14 +123,17 @@ void setup() {
   pinMode(CLK_PIN, INPUT);
   pinMode(DT_PIN, INPUT);
   pinMode(SW_PIN, INPUT_PULLUP);
-  pinMode(RELAY_PIN, OUTPUT);
+  pinMode(RELAY_1_PIN, OUTPUT);
+  pinMode(RELAY_2_PIN, OUTPUT);
   pinMode(POWER_CHECK_PIN, INPUT);
   pinMode(BACKLIGHT_PIN, OUTPUT);
   debouncerSwitch.attach(SW_PIN);      // Attach to the rotary encoder press pin
   debouncerSwitch.interval(2);         // Set debounce interval (in milliseconds)
   debouncerClk.attach(CLK_PIN);        // Attach to the rotary encoder clock pin
   debouncerClk.interval(2);            // Set debounce interval (in milliseconds)
-  digitalWrite(RELAY_PIN, HIGH);       // turn off the relay
+  digitalWrite(RELAY_1_PIN, HIGH);     // turn on the relay 1
+  digitalWrite(RELAY_2_PIN, LOW);      // turn off the relay 2
+  nextRelayState = 0;                  // must be just vice vrsa what is currently set 
   getCurrentTime();                    // read current time from RTC module
   isSummerTime = checkIsSummerTime();  // check if currently is Summer or Winter time depending to DST rules
   // initialize tower clock on same as current time  - will be set correctly in edit mode - here just to prevent rotating the tower clock
@@ -169,7 +171,7 @@ void loop() {
     updateTowerClock();           // check need to update tower clock
     checkNeedToCompensateTime();  // check any setting to self adjust time in RTC module
   }
-  checkCloseMotorRelay();  // check we need to close the relay
+  checkCloseMotorRelay();  // check rotating delay expired
   checkLcdBacklight();     // check need to turn off the LCD backlight
 }
 
@@ -204,7 +206,7 @@ void updateScreenDateTime() {
     lastTimeUpdate = currentTime;
     // update the lcd only if date time changed and showing hour screen
     // if screen sysTime, uptime, downtime, sinceLastCompensate
-    if ((currentPageIndex == 0 || currentPageIndex == 11 || currentPageIndex == 12 || currentPageIndex == 16) && motorState == 0) {
+    if ((currentPageIndex == 0 || currentPageIndex == 11 || currentPageIndex == 12 || currentPageIndex == 16) && !motorRotating) {
       updateDisplay();
     }
   }
@@ -244,16 +246,19 @@ void updateTowerClock() {
   }
 }
 
+
 // Turn the tower clock if there is power supply from grid, because otherwise motor will not rotate when relay is triggered
 void turnTheClock() {
   // check we have power supply and not running on battery - when there is no power we can not run the motor
   // check also not already in motor rotating state
-  if (motorState == 0 && isGridPowerOn()) {
+  if (motorRotating == false && isGridPowerOn()) {
     incrementTowerClock();         // increment the tower time fist to display correct new time on lcd screen
     showOperationMessage();        // show message on lcd screen that motor is operation
-    motorState = 1;                // set variable that relay is open and motor is in rotating state
+    motorRotating = true;          // set variable that relay is open and motor is in rotating state
     motorOpenStart = millis();     // store time when we start rotating the motor to stop after timeout
-    digitalWrite(RELAY_PIN, LOW);  // open relay - keep relay open for the delay setup in settings
+    digitalWrite(RELAY_1_PIN, nextRelayState);  // internate both relay between  different states
+    nextRelayState = nextRelayState==1 ? 0 : 1; // toggle the state
+    digitalWrite(RELAY_2_PIN, nextRelayState);  // internate both relay between different states
   }
 }
 
@@ -261,12 +266,8 @@ void turnTheClock() {
 // calculate time difference instead of using the delays
 // do not trigger the relay for next 5 seconds - to not rotate too quickly when hour change on DST also motor is rotating longer then relay is open - motor is having own relay to turn off when rotated enough
 void checkCloseMotorRelay() {
-  if (motorState == 1 && checkTimeoutExpired(motorOpenStart, relayDelay)) {
-    digitalWrite(RELAY_PIN, HIGH);  // close relay
-    motorState = 2;
-  }
-  if (motorState == 2 && checkTimeoutExpired(motorOpenStart, waitDelay)) {
-    motorState = 0;
+  if (motorRotating && checkTimeoutExpired(motorOpenStart, relayDelay)) {
+    motorRotating = false;
     updateDisplay();  // update the display with new tower time and removing operational message
   }
 }
@@ -375,22 +376,11 @@ void encoderRotated() {
         if (editStep == 1) {
           edit_compensateAfterDays = edit_compensateAfterDays + change;
           edit_compensateAfterDays = checkRange(edit_compensateAfterDays, 0, 365);
-        } else {
+        } else if (editStep == 1){
           edit_compensateSeconds = edit_compensateSeconds + change;
           edit_compensateSeconds = checkRange(edit_compensateSeconds, -1, 1);
         }
-        break;
-      case 4:  // delay
-               // updating the relay open state duration
-        edit_relayDelay = edit_relayDelay + (change * 10);
-        edit_relayDelay = checkRange(edit_relayDelay, 0, 6990);
-        break;
-      case 5:  // wait
-        // updating the wait motor duration
-        if (editStep == 1) {
-          edit_waitDelay = edit_waitDelay + (change * 10);
-          edit_waitDelay = checkRange(edit_waitDelay, 0, 9990);
-        } else {
+        else {
           confirmationResult = !confirmationResult;
         }
         break;
@@ -458,19 +448,7 @@ void encoderPressed() {
         }
         break;
       case 3:  // compensate
-        if (editStep == 3) {
-          // on last step on compensate settings
-          currentPageIndex = currentPageIndex + 1;
-          editStep = 1;  // moving to the delay setup
-        }
-        break;
-      case 4:  // delay
-               // on step on setting relay delay
-        currentPageIndex = currentPageIndex + 1;
-        editStep = 1;  // moving to the motor wait time setup
-        break;
-      case 5:  // wait
-        if (editStep == 3) {
+        if (editStep == 4) {
           if (confirmationResult) {
             // finishing the edit mode - update the RTC module with new settings
             myRTC.setHour(edit_hour);
@@ -482,8 +460,6 @@ void encoderPressed() {
             myRTC.setDoW(edit_dayOfWeek);
             towerHour = edit_towerHour;
             towerMinute = edit_towerMinute;
-            relayDelay = edit_relayDelay;
-            waitDelay = edit_waitDelay;
             compensateAfterDays = edit_compensateAfterDays;
             compensateSeconds = edit_compensateSeconds;
             secondsElapsedSinceLastCompensation = 0;
@@ -538,8 +514,6 @@ void enterEditMode() {
   edit_dayOfWeek = dayOfWeek;
   edit_towerHour = towerHour;
   edit_towerMinute = towerMinute;
-  edit_relayDelay = relayDelay;
-  edit_waitDelay = waitDelay;
   edit_compensateAfterDays = compensateAfterDays;
   edit_compensateSeconds = compensateSeconds;
 }
@@ -600,16 +574,7 @@ void updateDisplay() {
           // configuring tower clock minutes
           displayLcdMessage("Compensate", "Seconds: " + String(edit_compensateSeconds));
         }
-        break;
-      case 4:  // delay
-        // configuring relay open state delay
-        displayLcdMessage("Set Relay Delay", String(edit_relayDelay));
-        break;
-      case 5:  // wait
-        if (editStep == 1) {
-          // configuring motor wait time
-          displayLcdMessage("Set Motor Delay", String(edit_waitDelay));
-        } else {
+        else {
           displayLcdMessage("Confirm changes?", confirmationResult ? "Yes" : "No");
         }
         break;
@@ -637,59 +602,51 @@ void updateDisplay() {
         // display current tower clock time
         displayLcdMessage("Compensate after", String(compensateAfterDays) + " days " + String(compensateSeconds) + " sec");
         break;
-      case 4:  // delay
-        // display used relay open state delay duration in miliseconds
-        displayLcdMessage("Relay Delay [ms]", String(relayDelay));
-        break;
-      case 5:  // wait
-        // display used relay open state delay duration in miliseconds
-        displayLcdMessage("Motor Wait [ms]", String(waitDelay));
-        break;
-      case 6:  // temp
+      case 4:  // temp
         // display current temperature
         displayLcdMessage("Temperature", getTemp(lastTemp));
         break;
-      case 7:  // minTemp
+      case 5:  // minTemp
         // display minimum recorded temperature and date time that measured
         displayLcdMessage("Min. T. " + getTemp(minTemp), minTempDate);
         break;
-      case 8:  // maxTemp
+      case 6:  // maxTemp
         // display maximum recorded temperature and date time that measured
         displayLcdMessage("Max. T. " + getTemp(maxTemp), maxTempDate);
         break;
-      case 9:  // power
+      case 7:  // power
         // display if grid power supply is working
         displayLcdMessage("Power Supply", isGridPowerOn() ? "Ok" : "Fail");
         break;
-      case 10:  // lastFailure
+      case 8:  // lastFailure
         // display power supply last failure date
         displayLcdMessage("Last Power Fail.", lastFailureDate != "" ? lastFailureDate : "Never");
         break;
-      case 11:  // uptime
+      case 9:  // uptime
         // display power supply uptime seconds
         displayLcdMessage("Uptime Seconds", String(upTimeSeconds));
         break;
-      case 12:  // downtime
+      case 10:  // downtime
         // display power supply down time seconds
         displayLcdMessage("Downtime Seconds", String(downTimeSeconds));
         break;
-      case 13:  // lastSetup
+      case 11:  // lastSetup
         // display last time date and time has been adjusted with setup proces
         displayLcdMessage("Last Setup", lastTimeSetup);
         break;
-      case 14:  // lastReset
+      case 12:  // lastReset
         // display since when controller is running, this works well only if RTC has been adjusted before
         displayLcdMessage("Last Startup", lastTimeStartup);
         break;
-      case 15:  // lastCompensate
+      case 13:  // lastCompensate
         // display last date time that clock has been self adjusted
         displayLcdMessage("Last Compensate", lastTimeCompensated);
         break;
-      case 16:  // sinceLastCompensate
+      case 14:  // sinceLastCompensate
         // display seconds elapsed since last time compensation
         displayLcdMessage("Last compen. sec", String(secondsElapsedSinceLastCompensation));
         break;
-      case 17:  // totalCompensated
+      case 15:  // totalCompensated
         // display total amount of seconds that were compensated
         displayLcdMessage("Total compensat.", String(totalSecondsCompensated));
         break;
