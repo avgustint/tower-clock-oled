@@ -88,9 +88,10 @@ String lastTimeCompensated = "Never";
 int totalSecondsCompensated = 0;
 
 // app
-const int NUM_OF_PAGES = 16;
-// String screenPages[NUM_OF_PAGES] = { "sysTime", "sysDate", "towerTime", "compensate", "temp", "minTemp", "maxTemp", "power", "lastFailure", "uptime", "downtime", "lastSetup", "lastReset", "lastCompensate","sinceLastCompensate","totalCompensated" };
-int currentPageIndex = 0;                       // current selected page to show on LCD
+const int NUM_OF_PAGES = 17;
+// String screenPages[NUM_OF_PAGES] = { "sysTime", "sysDate", "towerTime", "compensate", "temp", "minTemp", "maxTemp", "power", "lastFailure", "uptime", "downtime", "lastSetup", "lastReset", "lastCompensate","sinceLastCompensate","totalCompensated","info" };
+int defaultPageIndex = 16;                      // current selected page to show on LCD
+int currentPageIndex = defaultPageIndex;        // current selected page to show on LCD
 int controllerMode = 0;                         // in with mode is currently the controller 0: normal operation, 1: setup or edit mode, 2: reset mode
 int editStep = 1;                               // current step of configuration for each screen
 String lastTimeUpdate = "";                     // storing last updated time on LCD - to not refresh LCD to often
@@ -206,7 +207,7 @@ void updateScreenDateTime() {
     lastTimeUpdate = currentTime;
     // update the lcd only if date time changed and showing hour screen
     // if screen sysTime, uptime, downtime, sinceLastCompensate
-    if ((currentPageIndex == 0 || currentPageIndex == 11 || currentPageIndex == 12 || currentPageIndex == 16) && !motorRotating) {
+    if ((currentPageIndex == 0 || currentPageIndex == 11 || currentPageIndex == 12 || currentPageIndex == 16 || currentPageIndex == defaultPageIndex) && !motorRotating) {
       updateDisplay();
     }
   }
@@ -518,7 +519,7 @@ void enterEditMode() {
 
 // user exited the the edit mode - reinitialize some variables
 void exitEditMode(bool valuesUpdated) {
-  currentPageIndex = 0;
+  currentPageIndex = defaultPageIndex;
   controllerMode = 0;
   editStep = 1;
   valuesUpdated ? displayOledMessage("Values saved!","") : displayOledMessage("Cancelled!","");
@@ -646,10 +647,30 @@ void updateDisplay() {
         // display total amount of seconds that were compensated
         displayOledMessage("Total compensat.", String(totalSecondsCompensated));
         break;
+      case 16:  // info screen
+        // display total amount of seconds that were compensated
+        displayInfoScreen();
+        break;
       default:
         break;
     }
   }
+}
+
+// display info screen with all the data
+void displayInfoScreen(){
+  // clear the complete LCD screen
+  display.clearDisplay();
+  // display status bar info
+  addStatusInfo();
+  display.setTextSize(4);
+  // move to first position on top row
+  display.setCursor(2, 12);
+  display.print(getFormatedDate(year, month, day)+" "+getFormatedTime(hour, minute, second));
+  // move to first position on bottom row
+  display.setCursor(2, 40);
+  display.print("Tower: "+getFormatedShortTime(towerHour, towerMinute));
+  display.display();
 }
 
 // display 2 line message on LCD screen
@@ -669,7 +690,7 @@ void displayOledMessage(String line1, String line2) {
 }
 
 // display status bar information
-addStatusInfo(){
+void addStatusInfo(){
   display.setTextSize(2);
   // display power status
   display.setCursor(2, 2);
