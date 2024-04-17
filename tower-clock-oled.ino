@@ -293,8 +293,8 @@ bool checkTimeoutExpired(unsigned long lastChange, unsigned long timeoutDuration
 
 // show message that motor in in the operation and rotating the clock indicators
 void showOperationMessage() {
-  // displayLcdMessage("Motor rotating..", "Tower time " + getFormatedShortTime(towerHour, towerMinute));
-  displayLcdMessage("Rotating", "Time " + getFormatedShortTime(towerHour, towerMinute));
+  // displayOledMessage("Motor rotating..", "Tower time " + getFormatedShortTime(towerHour, towerMinute));
+  displayOledMessage("Rotating", "Time " + getFormatedShortTime(towerHour, towerMinute));
 }
 
 // increment one minute of tower clock
@@ -481,9 +481,7 @@ void encoderPressed() {
     } else {
       controllerMode = 0;
       editStep = 1;
-      lcd.clear();
-      lcd.setCursor(0, 0);
-      lcd.print("Cancelled!");
+      displayOledMessage("Cancelled!", "");
       delay(500);
     }
   } else {
@@ -523,9 +521,7 @@ void exitEditMode(bool valuesUpdated) {
   currentPageIndex = 0;
   controllerMode = 0;
   editStep = 1;
-  lcd.clear();
-  lcd.setCursor(0, 0);
-  valuesUpdated ? lcd.print("Values saved!") : lcd.print("Cancelled!");
+  valuesUpdated ? displayOledMessage("Values saved!","") : displayOledMessage("Cancelled!","");
   delay(500);
 }
 
@@ -536,119 +532,119 @@ void updateDisplay() {
       case 0:  // sysTime
         if (editStep == 1) {
           // configuring system time hour
-          displayLcdMessage("Set System Hour", String(edit_hour));
+          displayOledMessage("Set System Hour", String(edit_hour));
         } else if (editStep == 2) {
           // configuring system time minutes
-          displayLcdMessage("Set System Min.", String(edit_minute));
+          displayOledMessage("Set System Min.", String(edit_minute));
         }
         break;
       case 1:  // sysDate
         if (editStep == 1) {
           // configuring system time day
-          displayLcdMessage("Set System Day", String(edit_day));
+          displayOledMessage("Set System Day", String(edit_day));
         } else if (editStep == 2) {
           // configuring system time month
-          displayLcdMessage("Set System Month", String(edit_month));
+          displayOledMessage("Set System Month", String(edit_month));
         } else if (editStep == 3) {
           // configuring system time year
-          displayLcdMessage("Set System Year", "20" + String(edit_year));
+          displayOledMessage("Set System Year", "20" + String(edit_year));
         } else if (editStep == 4) {
           // configuring day of week - Monday, Tuesday,...
-          displayLcdMessage("Set Day Of Week", getWeekDayName(edit_dayOfWeek));
+          displayOledMessage("Set Day Of Week", getWeekDayName(edit_dayOfWeek));
         }
         break;
       case 2:  // towerTime
         if (editStep == 1) {
           // configuring tower clock hour
-          displayLcdMessage("Set Tower Hour", String(edit_towerHour));
+          displayOledMessage("Set Tower Hour", String(edit_towerHour));
         } else if (editStep == 2) {
           // configuring tower clock minutes
-          displayLcdMessage("Set Tower Min.", String(edit_towerMinute));
+          displayOledMessage("Set Tower Min.", String(edit_towerMinute));
         }
         break;
       case 3:  // compensate
         if (editStep == 1) {
           // configuring tower clock hour
-          displayLcdMessage("Compensate Time", "After days: " + String(edit_compensateAfterDays));
+          displayOledMessage("Compensate Time", "After days: " + String(edit_compensateAfterDays));
         } else if (editStep == 2) {
           // configuring tower clock minutes
-          displayLcdMessage("Compensate", "Seconds: " + String(edit_compensateSeconds));
+          displayOledMessage("Compensate", "Seconds: " + String(edit_compensateSeconds));
         }
         else {
-          displayLcdMessage("Confirm changes?", confirmationResult ? "Yes" : "No");
+          displayOledMessage("Confirm changes?", confirmationResult ? "Yes" : "No");
         }
         break;
       default:
         break;
     }
   } else if (controllerMode == 2) {
-    displayLcdMessage("Reset arduino?", confirmReset ? "Yes" : "No");
+    displayOledMessage("Reset arduino?", confirmReset ? "Yes" : "No");
   } else {
     // we are in normal mode operation
     switch (currentPageIndex) {
       case 0:  // sysTime
         // display current system time and day of week
-        displayLcdMessage("System Time", getFormatedTime(hour, minute, second) + " " + getWeekDayName(dayOfWeek));
+        displayOledMessage("System Time", getFormatedTime(hour, minute, second) + " " + getWeekDayName(dayOfWeek));
         break;
       case 1:  // sysDate
         // display current system date and Summer or Winter time
-        displayLcdMessage("System Date", getFormatedDate(year, month, day) + " " + (isSummerTime ? "Summ." : "Wint."));
+        displayOledMessage("System Date", getFormatedDate(year, month, day) + " " + (isSummerTime ? "Summ." : "Wint."));
         break;
       case 2:  // towerTime
         // display current tower clock time
-        displayLcdMessage("Tower Time", getFormatedShortTime(towerHour, towerMinute));
+        displayOledMessage("Tower Time", getFormatedShortTime(towerHour, towerMinute));
         break;
       case 3:  //compensate
         // display current tower clock time
-        displayLcdMessage("Compensate after", String(compensateAfterDays) + " days " + String(compensateSeconds) + " sec");
+        displayOledMessage("Compensate after", String(compensateAfterDays) + " days " + String(compensateSeconds) + " sec");
         break;
       case 4:  // temp
         // display current temperature
-        displayLcdMessage("Temperature", getTemp(lastTemp));
+        displayOledMessage("Temperature", getTemp(lastTemp));
         break;
       case 5:  // minTemp
         // display minimum recorded temperature and date time that measured
-        displayLcdMessage("Min. T. " + getTemp(minTemp), minTempDate);
+        displayOledMessage("Min. T. " + getTemp(minTemp), minTempDate);
         break;
       case 6:  // maxTemp
         // display maximum recorded temperature and date time that measured
-        displayLcdMessage("Max. T. " + getTemp(maxTemp), maxTempDate);
+        displayOledMessage("Max. T. " + getTemp(maxTemp), maxTempDate);
         break;
       case 7:  // power
         // display if grid power supply is working
-        displayLcdMessage("Power Supply", isGridPowerOn() ? "Ok" : "Fail");
+        displayOledMessage("Power Supply", isGridPowerOn() ? "Ok" : "Fail");
         break;
       case 8:  // lastFailure
         // display power supply last failure date
-        displayLcdMessage("Last Power Fail.", lastFailureDate != "" ? lastFailureDate : "Never");
+        displayOledMessage("Last Power Fail.", lastFailureDate != "" ? lastFailureDate : "Never");
         break;
       case 9:  // uptime
         // display power supply uptime seconds
-        displayLcdMessage("Uptime Seconds", String(upTimeSeconds));
+        displayOledMessage("Uptime Seconds", String(upTimeSeconds));
         break;
       case 10:  // downtime
         // display power supply down time seconds
-        displayLcdMessage("Downtime Seconds", String(downTimeSeconds));
+        displayOledMessage("Downtime Seconds", String(downTimeSeconds));
         break;
       case 11:  // lastSetup
         // display last time date and time has been adjusted with setup proces
-        displayLcdMessage("Last Setup", lastTimeSetup);
+        displayOledMessage("Last Setup", lastTimeSetup);
         break;
       case 12:  // lastReset
         // display since when controller is running, this works well only if RTC has been adjusted before
-        displayLcdMessage("Last Startup", lastTimeStartup);
+        displayOledMessage("Last Startup", lastTimeStartup);
         break;
       case 13:  // lastCompensate
         // display last date time that clock has been self adjusted
-        displayLcdMessage("Last Compensate", lastTimeCompensated);
+        displayOledMessage("Last Compensate", lastTimeCompensated);
         break;
       case 14:  // sinceLastCompensate
         // display seconds elapsed since last time compensation
-        displayLcdMessage("Last compen. sec", String(secondsElapsedSinceLastCompensation));
+        displayOledMessage("Last compen. sec", String(secondsElapsedSinceLastCompensation));
         break;
       case 15:  // totalCompensated
         // display total amount of seconds that were compensated
-        displayLcdMessage("Total compensat.", String(totalSecondsCompensated));
+        displayOledMessage("Total compensat.", String(totalSecondsCompensated));
         break;
       default:
         break;
@@ -657,15 +653,36 @@ void updateDisplay() {
 }
 
 // display 2 line message on LCD screen
-void displayLcdMessage(String line1, String line2) {
+void displayOledMessage(String line1, String line2) {
   // clear the complete LCD screen
-  lcd.clear();
+  display.clearDisplay();
+  // display status bar info
+  addStatusInfo();
+  display.setTextSize(4);
   // move to first position on top row
-  lcd.setCursor(0, 0);
-  lcd.print(line1);
+  display.setCursor(2, 12);
+  display.print(line1);
   // move to first position on bottom row
-  lcd.setCursor(0, 1);
-  lcd.print(line2);
+  display.setCursor(2, 40);
+  display.print(line2);
+  display.display();
+}
+
+// display status bar information
+addStatusInfo(){
+  display.setTextSize(2);
+  // display power status
+  display.setCursor(2, 2);
+  isGridPowerOn() ? display.print("Power: OK"): display.print("Power: Fail");
+  // display temperature
+  display.setCursor(50, 2);
+  display.print(getTemp(lastTemp));
+  // display Summer/Winter Time
+  display.setCursor(80, 2);
+  display.print(isSummerTime ? "Summ." : "Wint.");
+  // display open SSR channel
+  display.setCursor(100, 2);
+  display.print(nextRelayState ? "CH 2" : "CH 1");
 }
 
 // format temperature with degrees symbol
