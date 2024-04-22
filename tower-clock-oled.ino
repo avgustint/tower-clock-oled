@@ -34,6 +34,9 @@
 #define RELAY_1_PIN 14      // define pin to trigger the relay 1
 #define RELAY_2_PIN 15      // define pin to trigger the relay 2
 
+#define MOTOR_DELAY 5000           // motor delay betwen next time changing state
+#define NO_ACTIVITY_DURATION 5000  // the duration of waiting time in edit mode after which we auto close edit mode without changes
+
 // system time data
 uint16_t year = 2024;
 uint8_t month = 1;
@@ -58,13 +61,12 @@ DateTime currentTime;
 bool editMode = false;
 bool editModeBlinkDark = false;
 unsigned long lastEditModeChange = 0;     // stored time when user done some interaction in edit mode - auto cancel edit mode after timeout
-unsigned int noActivityDuration = 60000;  // the duration of waiting time in edit mode after which we auto close edit mode without changes
 uint8_t mainScreenIndex = 1;
 
 // motor
 bool motorRotating = false;        // current state of the motor - true: rotating, false: motor not rotating any more
 unsigned long motorOpenStart = 0;  // when motor started to rotate
-short motorDelay = 5000;           // motor delay betwen next time changing state
+
 
 // temperature
 int8_t lastTemp;
@@ -181,7 +183,7 @@ void loop() {
       updateEditModeDisplay();
     }
     // check auto exit edit mode timeout already passed
-    if (checkTimeoutExpired(lastEditModeChange, noActivityDuration)) {
+    if (checkTimeoutExpired(lastEditModeChange, NO_ACTIVITY_DURATION)) {
       exitEditMode();  // auto exit edit mode after no interaction timeout
     }
   } else {
@@ -190,7 +192,7 @@ void loop() {
       updateTowerClock();
       updateMainScreen();
       checkNeedToCompensateTime();
-      if (checkTimeoutExpired(lastEditModeChange, noActivityDuration)) {
+      if (checkTimeoutExpired(lastEditModeChange, NO_ACTIVITY_DURATION)) {
         mainScreenIndex = 0;  // close display
       }
     }
@@ -263,7 +265,7 @@ void incrementTowerClock() {
 // calculate time difference instead of using the delays
 // do not trigger the relay for next 5 seconds - to not rotate too quickly when hour change on DST also motor is rotating longer then relay is open - motor is having own relay to turn off when rotated enough
 void checkCloseMotorRelay() {
-  if (motorRotating && checkTimeoutExpired(motorOpenStart, motorDelay)) {
+  if (motorRotating && checkTimeoutExpired(motorOpenStart, MOTOR_DELAY)) {
     motorRotating = false;
   }
 }
