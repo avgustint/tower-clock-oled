@@ -35,7 +35,7 @@
 #define RELAY_2_PIN 15      // define pin to trigger the relay 2
 
 #define MOTOR_DELAY 5000           // motor delay betwen next time changing state
-#define NO_ACTIVITY_DURATION 5000  // the duration of waiting time in edit mode after which we auto close edit mode without changes
+#define NO_ACTIVITY_DURATION 60000  // the duration of waiting time in edit mode after which we auto close edit mode without changes
 
 // system time data
 uint16_t year = 2024;
@@ -288,7 +288,7 @@ void checkTemperature() {
 
 
 // common function to check if different timeouts already expired from last change
-bool checkTimeoutExpired(unsigned long lastChange, short timeoutDuration) {
+bool checkTimeoutExpired(unsigned long lastChange, unsigned int timeoutDuration) {
   unsigned long currentMillis = millis();
   return ((currentMillis - lastChange) >= timeoutDuration);
 }
