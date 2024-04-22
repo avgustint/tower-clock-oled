@@ -10,7 +10,6 @@
   March 2024
 */
 
-// #include <DS3231.h>
 #include <SPI.h>
 #include <Wire.h>
 #include <Adafruit_GFX.h>
@@ -35,40 +34,39 @@
 #define RELAY_2_PIN 15     // define pin to trigger the relay 2
 
 #define MOTOR_DELAY 5000           // motor delay between next time changing state
-#define NO_ACTIVITY_DURATION 60000 // the duration of waiting time in edit mode after which we auto close edit mode without changes
+#define NO_ACTIVITY_DURATION 60000 // the duration of waiting time in edit mode after which we auto close edit mode without changes or turning display into sleep
 
 // system time data
-uint16_t year = 2024;
-uint8_t month = 1;
-uint8_t day = 1;
-uint8_t hour = 0;
-uint8_t minute = 0;
-uint8_t second = 0;
-uint8_t dayOfWeek = 1;
+uint16_t year;
+uint8_t month;
+uint8_t day;
+uint8_t hour;
+uint8_t minute;
+uint8_t second;
+uint8_t dayOfWeek;
 bool isSummerTime = false; // are we using summer or winter time depending on DST rules
 
 // tower time - the current position of tower clock indicators
 uint8_t towerHour = 0;
 uint8_t towerMinute = 0;
 
-bool channel1Open = false; // next state of relay
-/* 32-bit times as seconds since 2000-01-01. */
-uint32_t currentSeconds;
-uint32_t lastUpdateSeconds;
+bool channel1Open = false;                  // next state of relay - toggle between 2 solid state relay
+uint32_t currentSeconds;                    // 32-bit times as seconds since 2000-01-01.
+uint32_t lastUpdateSeconds;                 // 32-bit times as seconds since 2000-01-01.
 unsigned long lastUpdateEditModeScreen = 0; // when we last updated screen in edit mode for blinking
-DateTime currentTime;
+DateTime currentTime;                       // list read time from RTC
 // char lastTimeStartup[24];
-bool editMode = false;
-bool editModeBlinkDark = false;
-unsigned long lastEditModeChange = 0; // stored time when user done some interaction in edit mode - auto cancel edit mode after timeout
-uint8_t mainScreenIndex = 1;
-unsigned long last_clock_interrupt = 0;
+bool editMode = false;                  // are we in edit mode
+bool editModeBlinkDark = false;         // toggle blinking in edit mode when value selected
+unsigned long lastEditModeChange = 0;   // stored time when user done some interaction in edit mode - auto cancel edit mode after timeout
+uint8_t mainScreenIndex = 1;            // index of displayed screen in normal operation - switching between different screens
+unsigned long last_clock_interrupt = 0; // variable used for detecting rotary encoder rotation
 
 // motor
 bool motorRotating = false;       // current state of the motor - true: rotating, false: motor not rotating any more
 unsigned long motorOpenStart = 0; // when motor started to rotate
 
-// temperature
+// temperature - record current, min and max temperature and time when recorded
 int8_t lastTemp;
 int8_t minTemp = 120;
 int8_t maxTemp = -120;
@@ -239,11 +237,11 @@ void getCurrentTime()
 // update the tower clock if minute incremented
 void updateTowerClock()
 {
-    int currentDayMinutes = getSystemMinutes();              // using system time - get number of minutes in day for 12h format
-    int towerDayMinutes = getTowerMinutes();                 // using tower time - get number of minutes in day  of tower time for 12h format
-    short minutesDiff = currentDayMinutes - towerDayMinutes; // calculate minutes diff between controller time and tower time
+    uint16_t currentDayMinutes = getSystemMinutes();            // using system time - get number of minutes in day for 12h format
+    uint16_t towerDayMinutes = getTowerMinutes();               // using tower time - get number of minutes in day  of tower time for 12h format
+    uint16_t minutesDiff = currentDayMinutes - towerDayMinutes; // calculate minutes diff between controller time and tower time
     // minutesDiff > 0 curent time is ahead of tower time - try to catch up, but only if current time is less then 10 hours ahead, otherwise wait
-    short sixHoursDiff = 10 * 60;
+    uint16_t sixHoursDiff = 10 * 60;
     if (minutesDiff > 0 && minutesDiff < sixHoursDiff)
     {
         turnTheClock();     // need to turn the tower clock
@@ -322,17 +320,17 @@ bool checkTimeoutExpired(unsigned long lastChange, unsigned int timeoutDuration)
 }
 
 // get number of minutes in a day by using only 12h format - because on tower we have only 12 hours
-short getSystemMinutes()
+uint16_t getSystemMinutes()
 {
-    short currentHour = hour % 12; // if hour is in 24h format is the same for tower clock to use 12 hour format
+    uint16_t currentHour = hour % 12; // if hour is in 24h format is the same for tower clock to use 12 hour format
     return currentHour * 60 + minute;
 }
 
 // get number of minutes of tower clock in a day by using only 12h format
-short getTowerMinutes()
+uint16_t getTowerMinutes()
 {
-    short currentHour = towerHour % 12; // if hour is in 24h format is the same for tower clock to use 12 hour format
-    short dayMinutes = currentHour * 60 + towerMinute;
+    uint16_t currentHour = towerHour % 12; // if hour is in 24h format is the same for tower clock to use 12 hour format
+    uint16_t dayMinutes = currentHour * 60 + towerMinute;
     if (dayMinutes == 719)
     { // if last minute in a day then return -1, because first minute in a day using system time will be zero, otherwise tower clock will not be incremented
         dayMinutes = -1;
@@ -340,6 +338,7 @@ short getTowerMinutes()
     return dayMinutes;
 }
 
+// display main screen info in normal operation - switch between different screens
 void updateMainScreen()
 {
     display.fillRect(0, 0, 128, 64, SSD1306_BLACK);
@@ -472,6 +471,7 @@ void addStatusInfo()
     display.print(channelText);
 }
 
+// show screen in edit mode
 void updateEditModeDisplay()
 {
     display.fillRect(0, 0, 128, 64, SSD1306_BLACK);
@@ -574,7 +574,7 @@ void updateEditModeDisplay()
     }
     else
     {
-        // one of options selected to edit
+        // one of options selected to edit - blink that option
         if (editModeBlinkDark)
         {
             switch (currentPageIndex)
@@ -641,7 +641,7 @@ bool checkIsSummerTime()
         return true;
 
     // calculate previous sunday day
-    int previousSunday = day - dayOfWeek % 7; // use different indexes the app 0 - Sunday, 1-Monday,..., 6-Saturday
+    uint8_t previousSunday = day - dayOfWeek % 7; // use different indexes the app 0 - Sunday, 1-Monday,..., 6-Saturday
 
     if (month == 3)
         return previousSunday >= 25;
@@ -687,10 +687,12 @@ void encoderPressed()
         {
             if (currentPageIndex != selectedPageIndex)
             {
+                // select currently underlined option
                 selectedPageIndex = currentPageIndex;
             }
             else
             {
+                // deselect currently selected option
                 selectedPageIndex = 0;
             }
         }
@@ -790,6 +792,7 @@ void encoderRotated()
     }
     else
     {
+        // rotate between main screens
         mainScreenIndex = mainScreenIndex + change;
         mainScreenIndex = checkRange(mainScreenIndex, 1, 2);
     }
