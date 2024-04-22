@@ -720,7 +720,7 @@ void encoderRotated()
         {
             change = -1; // rotated anticlockwise
         }
-        last_clock_interrupt = lastEditModeChange();
+        last_clock_interrupt = lastEditModeChange;
     }
 
     // int dtState = digitalRead(DT_PIN);
