@@ -57,9 +57,8 @@ DateTime currentTime;
 //DateTime //lastTimeStartup;
 bool editMode = false;
 bool editModeBlinkDark = false;
-unsigned long lastEditModeChange = 0;           // stored time when user done some interaction in edit mode - auto cancel edit mode after timeout
-unsigned int editModeAutoExitDuration = 60000;  // the duration of waiting time in edit mode after which we auto close edit mode without changes
-unsigned int screenOpenDuration = 60000;
+unsigned long lastEditModeChange = 0;     // stored time when user done some interaction in edit mode - auto cancel edit mode after timeout
+unsigned int noActivityDuration = 60000;  // the duration of waiting time in edit mode after which we auto close edit mode without changes
 uint8_t mainScreenIndex = 1;
 
 // motor
@@ -182,7 +181,7 @@ void loop() {
       updateEditModeDisplay();
     }
     // check auto exit edit mode timeout already passed
-    if (checkTimeoutExpired(lastEditModeChange, editModeAutoExitDuration)) {
+    if (checkTimeoutExpired(lastEditModeChange, noActivityDuration)) {
       exitEditMode();  // auto exit edit mode after no interaction timeout
     }
   } else {
@@ -191,9 +190,9 @@ void loop() {
       updateTowerClock();
       updateMainScreen();
       checkNeedToCompensateTime();
-      if (checkTimeoutExpired(lastEditModeChange, screenOpenDuration)) {
-mainScreenIndex = 0;// close display
-  }
+      if (checkTimeoutExpired(lastEditModeChange, noActivityDuration)) {
+        mainScreenIndex = 0;  // close display
+      }
     }
   }
   checkCloseMotorRelay();  // check rotating delay expired
