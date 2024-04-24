@@ -30,8 +30,8 @@
 
 // other pins
 #define POWER_CHECK_PIN 10  // pin for checking power supply
-#define RELAY_1_PIN 14      // define pin to trigger the relay 1
-#define RELAY_2_PIN 15      // define pin to trigger the relay 2
+#define SWITCH_1_PIN 14      // define pin to trigger the Solid State Relay SSR 
+#define SWITCH_2_PIN 15      // define pin to read motor encoder state
 
 #define MOTOR_DELAY 5000            // motor delay between next time changing state
 #define NO_ACTIVITY_DURATION 60000  // the duration of waiting time in edit mode after which we auto close edit mode without changes or turning display into sleep
@@ -50,7 +50,6 @@ bool isSummerTime = false;  // are we using summer or winter time depending on D
 uint8_t towerHour = 0;
 uint8_t towerMinute = 0;
 
-bool channel1Open = false;                   // next state of relay - toggle between 2 solid state relay
 uint32_t currentSeconds;                     // 32-bit times as seconds since 2000-01-01.
 uint32_t lastUpdateSeconds;                  // 32-bit times as seconds since 2000-01-01.
 unsigned long lastUpdateEditModeScreen = 0;  // when we last updated screen in edit mode for blinking
@@ -98,8 +97,9 @@ int8_t edit_compensateSeconds;
 // initialize objects
 Adafruit_SSD1306 display(SCREEN_WIDTH, SCREEN_HEIGHT, &Wire, OLED_RESET);
 RTC_DS3231 myRTC;
-Bounce debouncerSwitch = Bounce(); // Create a Bounce object to prevent any glitches from rotary encoder switch
-Bounce debouncerClk = Bounce();    // Create a Bounce object to prevent any glitches from rotary encoder clock signal
+Bounce debouncerSwitch = Bounce();    // Create a Bounce object to prevent any glitches from rotary encoder switch
+Bounce debouncerClk = Bounce();       // Create a Bounce object to prevent any glitches from rotary encoder clock signal
+Bounce debouncerMotor = Bounce();     // Create a Bounce object to prevent any glitches from motor encoder clock signal
 
 // initialize the controller
 void setup() {
@@ -121,14 +121,15 @@ void setup() {
   pinMode(DT_PIN, INPUT_PULLUP);
   pinMode(SW_PIN, INPUT_PULLUP);
   pinMode(POWER_CHECK_PIN, INPUT);
-  pinMode(RELAY_1_PIN, OUTPUT);
-  pinMode(RELAY_2_PIN, OUTPUT);
-  digitalWrite(RELAY_1_PIN, HIGH);  // turn on the relay 1
-  digitalWrite(RELAY_2_PIN, LOW);   // turn off the relay 2
+  pinMode(SWITCH_1_PIN, OUTPUT);
+  pinMode(SWITCH_2_PIN, INPUT_PULLUP);
+  digitalWrite(SWITCH_1_PIN, LOW);  // turn off the relay
   debouncerSwitch.attach(SW_PIN);  // Attach to the rotary encoder press pin
   debouncerSwitch.interval(2);     // Set debounce interval (in milliseconds)
   debouncerClk.attach(CLK_PIN);    // Attach to the rotary encoder clock pin
   debouncerClk.interval(2);        // Set debounce interval (in milliseconds)
+  debouncerMotor.attach(SWITCH_2_PIN);    // Attach to the motor encoder clock pin
+  debouncerMotor.interval(20);            // Set debounce interval (in milliseconds)
 
   getCurrentTime();
   checkTemperature();
@@ -146,6 +147,7 @@ void loop() {
   // Update the debouncer
   debouncerSwitch.update();
   debouncerClk.update();
+  debouncerMotor.update();
 
   // Read debounced rotary encoder press button state
   if (debouncerSwitch.fell()){
@@ -155,6 +157,10 @@ void loop() {
   // Read debounced rotary encoder rotating clock event
   if (debouncerClk.fell()){
       encoderRotated();
+  }
+
+  if (debouncerMotor.changed()){
+      stopMotor();
   }
 
   getCurrentTime();  // read current time from RTC module
@@ -207,8 +213,8 @@ void updateTowerClock() {
   uint16_t towerDayMinutes = getTowerMinutes();                // using tower time - get number of minutes in day  of tower time for 12h format
   uint16_t minutesDiff = currentDayMinutes - towerDayMinutes;  // calculate minutes diff between controller time and tower time
   // minutesDiff > 0 curent time is ahead of tower time - try to catch up, but only if current time is less then 10 hours ahead, otherwise wait
-  uint16_t sixHoursDiff = 10 * 60;
-  if (minutesDiff > 0 && minutesDiff < sixHoursDiff) {
+  uint16_t tenHoursDiff = 10 * 60;
+  if (minutesDiff > 0 && minutesDiff < tenHoursDiff) {
     turnTheClock();      // need to turn the tower clock
     checkTemperature();  // every minute read also RTC module temperature
   }
@@ -222,10 +228,13 @@ void turnTheClock() {
     incrementTowerClock();                    // increment the tower time fist to display correct new time on lcd screen
     motorRotating = true;                     // set variable that relay is open and motor is in rotating state
     motorOpenStart = millis();                // store time when we start rotating the motor to stop after timeout
-    digitalWrite(RELAY_1_PIN, channel1Open);  // internate both relay between  different states
-    channel1Open = !channel1Open;             // toggle the state
-    digitalWrite(RELAY_2_PIN, channel1Open);  // internate both relay between different states
+    digitalWrite(SWITCH_1_PIN, HIGH);  // internate both relay between  different states
   }
+}
+
+// stop the motor rotation
+void stopMotor(){
+  digitalWrite(SWITCH_1_PIN, LOW);
 }
 
 // increment one minute of tower clock
