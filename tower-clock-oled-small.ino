@@ -15,7 +15,7 @@
 #include <Adafruit_GFX.h>
 #include <Adafruit_SSD1306.h>
 #include "RTClib.h"
-// #include <Bounce2.h>
+#include <Bounce2.h>
 
 // rotary encoder pins
 #define CLK_PIN 2  // rotary encoder clock pin
@@ -55,12 +55,10 @@ uint32_t currentSeconds;                     // 32-bit times as seconds since 20
 uint32_t lastUpdateSeconds;                  // 32-bit times as seconds since 2000-01-01.
 unsigned long lastUpdateEditModeScreen = 0;  // when we last updated screen in edit mode for blinking
 DateTime currentTime;                        // list read time from RTC
-// char lastTimeStartup[24];
 bool editMode = false;                   // are we in edit mode
 bool editModeBlinkDark = false;          // toggle blinking in edit mode when value selected
 unsigned long lastEditModeChange = 0;    // stored time when user done some interaction in edit mode - auto cancel edit mode after timeout
 uint8_t mainScreenIndex = 1;             // index of displayed screen in normal operation - switching between different screens
-unsigned long last_clock_interrupt = 0;  // variable used for detecting rotary encoder rotation
 
 // motor
 bool motorRotating = false;        // current state of the motor - true: rotating, false: motor not rotating any more
@@ -73,14 +71,6 @@ int8_t maxTemp = -120;
 char minTempDate[24];
 char maxTempDate[24];
 
-// RTC module self compensation
-uint16_t compensateAfterDays = 0;
-int8_t compensateSeconds = 0;  // possible values -1s, 0 or +1s
-unsigned long secondsElapsedSinceLastCompensation = 0;
-unsigned long secondsToCompensate = 0;
-// char lastTimeCompensated[24];
-short totalSecondsCompensated = 0;
-
 // setup mode variables
 uint8_t currentPageIndex;
 // 1 - day
@@ -90,11 +80,9 @@ uint8_t currentPageIndex;
 // 5 - minute
 // 6 - tower hour
 // 7 - tower minute
-// 8 - compensate after days
-// 9 - compensate seconds
-// 10 - reset arduino
-// 11 - confirmation setings
-// 12 - cancel settings
+// 8 - reset arduino
+// 9 - confirmation setings
+// 10 - cancel settings
 uint8_t selectedPageIndex;
 uint16_t edit_year;
 uint8_t edit_month;
@@ -110,8 +98,8 @@ int8_t edit_compensateSeconds;
 // initialize objects
 Adafruit_SSD1306 display(SCREEN_WIDTH, SCREEN_HEIGHT, &Wire, OLED_RESET);
 RTC_DS3231 myRTC;
-// Bounce debouncerSwitch = Bounce(); // Create a Bounce object to prevent any glitches from rotary encoder switch
-// Bounce debouncerClk = Bounce();    // Create a Bounce object to prevent any glitches from rotary encoder clock signal
+Bounce debouncerSwitch = Bounce(); // Create a Bounce object to prevent any glitches from rotary encoder switch
+Bounce debouncerClk = Bounce();    // Create a Bounce object to prevent any glitches from rotary encoder clock signal
 
 // initialize the controller
 void setup() {
@@ -137,13 +125,12 @@ void setup() {
   pinMode(RELAY_2_PIN, OUTPUT);
   digitalWrite(RELAY_1_PIN, HIGH);  // turn on the relay 1
   digitalWrite(RELAY_2_PIN, LOW);   // turn off the relay 2
-  // debouncerSwitch.attach(SW_PIN);  // Attach to the rotary encoder press pin
-  // debouncerSwitch.interval(2);     // Set debounce interval (in milliseconds)
-  // debouncerClk.attach(CLK_PIN);    // Attach to the rotary encoder clock pin
-  // debouncerClk.interval(2);        // Set debounce interval (in milliseconds)
+  debouncerSwitch.attach(SW_PIN);  // Attach to the rotary encoder press pin
+  debouncerSwitch.interval(2);     // Set debounce interval (in milliseconds)
+  debouncerClk.attach(CLK_PIN);    // Attach to the rotary encoder clock pin
+  debouncerClk.interval(2);        // Set debounce interval (in milliseconds)
 
   getCurrentTime();
-  // sprintf(lastTimeStartup, "%02d.%02d.%4d %02d:%02d:%02d", currentTime.day(), currentTime.month(), currentTime.year(), currentTime.hour(), currentTime.minute(), currentTime.second());
   checkTemperature();
   isSummerTime = checkIsSummerTime();  // check if currently is Summer or Winter time depending to DST rules
   // initialize tower clock on same as current time  - will be set correctly in edit mode - here just to prevent rotating the tower clock
@@ -152,30 +139,23 @@ void setup() {
   display.clearDisplay();
   display.display();  // this command will display all the data which is in buffer
   display.setTextWrap(false);
-
-  // Serial.println(F("Initialization end"));
-  // Attach interrupts
-  attachInterrupt(digitalPinToInterrupt(CLK_PIN), encoderRotated, FALLING);
-  attachInterrupt(digitalPinToInterrupt(SW_PIN), encoderPressed, FALLING);
 }
 
 // main microcontroller loop
 void loop() {
   // Update the debouncer
-  // debouncerSwitch.update();
-  // debouncerClk.update();
+  debouncerSwitch.update();
+  debouncerClk.update();
 
   // Read debounced rotary encoder press button state
-  // if (debouncerSwitch.fell())
-  //{
-  //    encoderPressed();
-  //}
+  if (debouncerSwitch.fell()){
+      encoderPressed();
+  }
 
   // Read debounced rotary encoder rotating clock event
-  // if (debouncerClk.fell())
-  //{
-  //    encoderRotated();
-  //}
+  if (debouncerClk.fell()){
+      encoderRotated();
+  }
 
   getCurrentTime();  // read current time from RTC module
   if (editMode) {
@@ -193,7 +173,6 @@ void loop() {
       lastUpdateSeconds = currentSeconds;
       updateTowerClock();
       updateMainScreen();
-      checkNeedToCompensateTime();
       if (checkTimeoutExpired(lastEditModeChange, NO_ACTIVITY_DURATION)) {
         mainScreenIndex = 0;  // close display
       }
@@ -364,50 +343,7 @@ void updateMainScreen() {
     display.setCursor(0, 57);
     display.print(maxTempDate);
   } else if (mainScreenIndex == 3) {
-    // // time compensation data
-    // display.setCursor(0, 0);
-    // char compensateAfterText[18] = "Compensate after";
-    // display.print(compensateAfterText);
-    // display.setCursor(0, 10);
-    // display.print(compensateAfterDays);
-    // display.setCursor(30, 10);
-    // char daysText[6] = "days";
-    // display.print(daysText);
-    // display.setCursor(60, 10);
-    // display.print(compensateSeconds);
-    // display.setCursor(80, 10);
-    // char secondsText[8] = "seconds";
-    // display.print(secondsText);
-    // display.setCursor(0, 20);
-    // char lastCompensationText[20] = "Last compensation:";
-    // display.print(lastCompensationText);
-    // display.setCursor(0, 30);
-    // // display last date time that clock has been self adjusted
 
-    // if (totalSecondsCompensated == 0) {
-    //   char neverText[6] = "Never";
-    //   display.print(neverText);
-    // } else {
-    //   display.print(lastTimeCompensated);
-    // }
-    // display.setCursor(0, 40);
-    // char totalCompensatedText[20] = "Total compensated:";
-    // display.print(totalCompensatedText);
-    // display.setCursor(0, 50);
-    // display.print(totalSecondsCompensated);
-    // display.setCursor(40, 50);
-    // char secondsCompensatedText[8] = "seconds";
-    // display.print(secondsCompensatedText);
-
-    // char lastStartupText[14] = "Last Startup";
-    // display.print(lastStartupText);
-    // display.setCursor(0, 10);
-    // display.print(lastTimeStartup);
-    // display.setCursor(0, 20);
-    // char lastSetupText[12] = "Last Setup";
-    // display.print(lastSetupText);
-    // display.setCursor(0, 30);
-    // display.print(lastTimeSetup);
   }
   display.display();
 }
@@ -428,11 +364,6 @@ void addStatusInfo() {
   char seasonText[8];
   sprintf(seasonText, "%s", isSummerTime ? "Summer" : "Winter");
   display.print(seasonText);
-  // display open SSR channel
-  display.setCursor(80, 10);
-  char channelText[6];
-  sprintf(channelText, "%s", channel1Open ? "CH 1" : "CH 2");
-  display.print(channelText);
 }
 
 // show screen in edit mode
@@ -489,11 +420,9 @@ void updateEditModeDisplay() {
     // 5 - minute
     // 6 - tower hour
     // 7 - tower minute
-    // 8 - compensate after days
-    // 9 - compensate seconds
-    // 10 - reset arduino
-    // 11 - confirmation setings
-    // 12 - cancel settings
+    // 8 - reset arduino
+    // 9 - confirmation setings
+    // 10 - cancel settings
     switch (currentPageIndex) {
       case 1:  // day
         display.drawFastHLine(68, 8, 12, WHITE);
@@ -516,19 +445,13 @@ void updateEditModeDisplay() {
       case 7:  // tower minute
         display.drawFastHLine(85, 32, 12, WHITE);
         break;
-      case 8:  // compensate after days
-        display.drawFastHLine(68, 44, 18, WHITE);
-        break;
-      case 9:  // compensate seconds
-        display.drawFastHLine(100, 44, 10, WHITE);
-        break;
-      case 10:  // reset
+      case 8:  // reset
         display.drawFastHLine(0, 63, 30, WHITE);
         break;
-      case 11:  // confirm
+      case 9:  // confirm
         display.drawFastHLine(40, 63, 41, WHITE);
         break;
-      case 12:  // cancel
+      case 10:  // cancel
         display.drawFastHLine(90, 63, 35, WHITE);
         break;
     }
@@ -618,11 +541,6 @@ void encoderPressed() {
       myRTC.adjust(DateTime(edit_year, edit_month, edit_day, edit_hour, edit_minute, 0));
       towerHour = edit_towerHour;
       towerMinute = edit_towerMinute;
-      compensateAfterDays = edit_compensateAfterDays;
-      compensateSeconds = edit_compensateSeconds;
-      secondsElapsedSinceLastCompensation = 0;
-      secondsToCompensate = compensateAfterDays * 86400;
-      totalSecondsCompensated = 0;
       isSummerTime = checkIsSummerTime();  //
       // sprintf(lastTimeSetup, "%02d.%02d.%4d %02d:%02d:%02d", currentTime.day(), currentTime.month(), currentTime.year(), currentTime.hour(), currentTime.minute(), currentTime.second());
       exitEditMode();  // move to normal operational mode
@@ -649,29 +567,20 @@ void encoderPressed() {
 void encoderRotated() {
   lastEditModeChange = millis();
   uint8_t change = 0;
-  if (lastEditModeChange - last_clock_interrupt > 5) {
-    if (digitalRead(DT_PIN) == 1) {
-      change = 1;  // rotated clockwise
-    }
-    if (digitalRead(DT_PIN) == 0) {
-      change = -1;  // rotated anticlockwise
-    }
-    last_clock_interrupt = lastEditModeChange;
-  }
 
-  // int dtState = digitalRead(DT_PIN);
-  // if (dtState == HIGH)
-  // {
-  //     change = 1; // rotated clockwise
-  // }
-  // else
-  // {
-  //     change = -1; // rotated anticlockwise
-  // }
+  int dtState = digitalRead(DT_PIN);
+  if (dtState == HIGH)
+  {
+      change = 1; // rotated clockwise
+  }
+  else
+  {
+      change = -1; // rotated anticlockwise
+  }
   if (editMode) {  // edit mode
     if (currentPageIndex != selectedPageIndex) {
       currentPageIndex = currentPageIndex + change;
-      currentPageIndex = checkRange(currentPageIndex, 1, 12);
+      currentPageIndex = checkRange(currentPageIndex, 1, 10);
     } else {
       switch (currentPageIndex) {
         case 1:  // day
@@ -709,14 +618,6 @@ void encoderRotated() {
           edit_towerMinute = edit_towerMinute + change;
           edit_towerMinute = checkRange(edit_towerMinute, 0, 59);
           break;
-        case 8:  // compensate after days
-          edit_compensateAfterDays = edit_compensateAfterDays + change;
-          edit_compensateAfterDays = checkRange(edit_compensateAfterDays, 0, 365);
-          break;
-        case 9:  // compensate seconds
-          edit_compensateSeconds = edit_compensateSeconds + change;
-          edit_compensateSeconds = checkRange(edit_compensateSeconds, -1, 1);
-          break;
       }
     }
     updateEditModeDisplay();
@@ -750,8 +651,6 @@ void enterEditMode() {
   edit_minute = minute;
   edit_towerHour = towerHour;
   edit_towerMinute = towerMinute;
-  edit_compensateAfterDays = compensateAfterDays;
-  edit_compensateSeconds = compensateSeconds;
 }
 
 // user exited the the edit mode - reinitialize some variables
@@ -790,24 +689,6 @@ String getWeekDayName(uint8_t dayIndex) {
     default:
       return F("Invalid");
       break;
-  }
-}
-
-// check there is setting for self adjustment for the time in RTC module and time already passed since last adjustment
-void checkNeedToCompensateTime() {
-  if ((compensateAfterDays > 0) && (compensateSeconds != 0) && (second == 30)) {  // compensate only in the middle of minute to prevent overflow to next minute, hour, day, month or even year
-    if (secondsElapsedSinceLastCompensation > secondsToCompensate) {
-      secondsElapsedSinceLastCompensation = 0;
-      if (compensateSeconds > 0) {
-        second++;
-        totalSecondsCompensated++;
-      } else {
-        second--;
-        totalSecondsCompensated--;
-      }
-      myRTC.adjust(DateTime(year, month, day, hour, minute, second));  //
-                                                                       // sprintf(lastTimeCompensated, "%02d.%02d.%4d %02d:%02d", currentTime.day(), currentTime.month(), currentTime.year(), currentTime.hour(), currentTime.minute());
-    }
   }
 }
 
