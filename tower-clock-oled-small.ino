@@ -30,8 +30,8 @@
 
 // other pins
 #define POWER_CHECK_PIN 10  // pin for checking power supply
-#define SWITCH_1_PIN 14      // define pin to trigger the Solid State Relay SSR 
-#define SWITCH_2_PIN 15      // define pin to read motor encoder state
+#define SWITCH_1_PIN 14     // define pin to trigger the Solid State Relay SSR
+#define SWITCH_2_PIN 15     // define pin to read motor encoder state
 
 #define MOTOR_DELAY 5000            // motor delay between next time changing state
 #define NO_ACTIVITY_DURATION 60000  // the duration of waiting time in edit mode after which we auto close edit mode without changes or turning display into sleep
@@ -54,10 +54,10 @@ uint32_t currentSeconds;                     // 32-bit times as seconds since 20
 uint32_t lastUpdateSeconds;                  // 32-bit times as seconds since 2000-01-01.
 unsigned long lastUpdateEditModeScreen = 0;  // when we last updated screen in edit mode for blinking
 DateTime currentTime;                        // list read time from RTC
-bool editMode = false;                   // are we in edit mode
-bool editModeBlinkDark = false;          // toggle blinking in edit mode when value selected
-unsigned long lastEditModeChange = 0;    // stored time when user done some interaction in edit mode - auto cancel edit mode after timeout
-uint8_t mainScreenIndex = 1;             // index of displayed screen in normal operation - switching between different screens
+bool editMode = false;                       // are we in edit mode
+bool editModeBlinkDark = false;              // toggle blinking in edit mode when value selected
+unsigned long lastUserInteraction = 0;       // stored time when user done some interaction in edit mode - auto cancel edit mode after timeout
+uint8_t mainScreenIndex = 1;                 // index of displayed screen in normal operation - switching between different screens
 
 // motor
 bool motorRotating = false;        // current state of the motor - true: rotating, false: motor not rotating any more
@@ -72,6 +72,7 @@ char maxTempDate[24];
 
 // setup mode variables
 uint8_t currentPageIndex;
+// Possible values:
 // 1 - day
 // 2 - month
 // 3 - year
@@ -92,28 +93,25 @@ uint8_t edit_towerHour;
 uint8_t edit_towerMinute;
 uint16_t edit_compensateAfterDays;
 int8_t edit_compensateSeconds;
-// char lastTimeSetup[24]
 
 // initialize objects
-Adafruit_SSD1306 display(SCREEN_WIDTH, SCREEN_HEIGHT, &Wire, OLED_RESET);
-RTC_DS3231 myRTC;
-Bounce debouncerSwitch = Bounce();    // Create a Bounce object to prevent any glitches from rotary encoder switch
-Bounce debouncerClk = Bounce();       // Create a Bounce object to prevent any glitches from rotary encoder clock signal
-Bounce debouncerMotor = Bounce();     // Create a Bounce object to prevent any glitches from motor encoder clock signal
+Adafruit_SSD1306 display(SCREEN_WIDTH, SCREEN_HEIGHT, &Wire, OLED_RESET);  // initialize OLED display
+RTC_DS3231 myRTC;                                                          // initialize RTC module
+Bounce debouncerSwitch = Bounce();                                         // Create a Bounce object to prevent any glitches from rotary encoder switch
+Bounce debouncerClk = Bounce();                                            // Create a Bounce object to prevent any glitches from rotary encoder clock signal
+Bounce debouncerMotor = Bounce();                                          // Create a Bounce object to prevent any glitches from motor encoder clock signal
 
 // initialize the controller
 void setup() {
-  // Serial.begin(9600);
-  // delay(1000); // wait for console opening
+  // start communication with RTC module
   if (!myRTC.begin()) {
-    // Serial.println(F("Couldn't find RTC"));
     while (1)
-      ;
+      ;  // Don't proceed, loop forever
   }
 
+  // start communication with OLED screen
   if (!display.begin(SSD1306_SWITCHCAPVCC, SCREEN_ADDRESS)) {
-    // Serial.println(F("SSD1306 allocation failed"));
-    for (;;)
+    while (1)
       ;  // Don't proceed, loop forever
   }
   // setup controller pins
@@ -123,20 +121,20 @@ void setup() {
   pinMode(POWER_CHECK_PIN, INPUT);
   pinMode(SWITCH_1_PIN, OUTPUT);
   pinMode(SWITCH_2_PIN, INPUT_PULLUP);
-  digitalWrite(SWITCH_1_PIN, LOW);  // turn off the relay
-  debouncerSwitch.attach(SW_PIN);  // Attach to the rotary encoder press pin
-  debouncerSwitch.interval(2);     // Set debounce interval (in milliseconds)
-  debouncerClk.attach(CLK_PIN);    // Attach to the rotary encoder clock pin
-  debouncerClk.interval(2);        // Set debounce interval (in milliseconds)
-  debouncerMotor.attach(SWITCH_2_PIN);    // Attach to the motor encoder clock pin
-  debouncerMotor.interval(20);            // Set debounce interval (in milliseconds)
-
-  getCurrentTime();
-  checkTemperature();
-  isSummerTime = checkIsSummerTime();  // check if currently is Summer or Winter time depending to DST rules
+  digitalWrite(SWITCH_1_PIN, LOW);      // turn off the relay
+  debouncerSwitch.attach(SW_PIN);       // Attach  debounce to the rotary encoder press pin
+  debouncerSwitch.interval(2);          // Set debounce interval (in milliseconds)
+  debouncerClk.attach(CLK_PIN);         // Attach to the rotary encoder clock pin
+  debouncerClk.interval(2);             // Set debounce interval (in milliseconds)
+  debouncerMotor.attach(SWITCH_2_PIN);  // Attach to the motor encoder clock pin
+  debouncerMotor.interval(20);          // Set debounce interval (in milliseconds)
+  getCurrentTime();                     // read current time from RTC module
+  checkTemperature();                   // read current temerature at initialization
+  isSummerTime = checkIsSummerTime();   // check if currently is Summer or Winter time depending to DST rules
   // initialize tower clock on same as current time  - will be set correctly in edit mode - here just to prevent rotating the tower clock
   towerHour = hour;
   towerMinute = minute;
+  // clear and initialize the display
   display.clearDisplay();
   display.display();  // this command will display all the data which is in buffer
   display.setTextWrap(false);
@@ -150,37 +148,41 @@ void loop() {
   debouncerMotor.update();
 
   // Read debounced rotary encoder press button state
-  if (debouncerSwitch.fell()){
-      encoderPressed();
+  if (debouncerSwitch.fell()) {
+    encoderPressed();
   }
 
   // Read debounced rotary encoder rotating clock event
-  if (debouncerClk.fell()){
-      encoderRotated();
+  if (debouncerClk.fell()) {
+    encoderRotated();
   }
 
-  if (debouncerMotor.changed()){
-      stopMotor();
+  // event when motor encoder switch triggered
+  if (debouncerMotor.changed()) {
+    stopMotor();
   }
 
   getCurrentTime();  // read current time from RTC module
   if (editMode) {
-    if (checkTimeoutExpired(lastUpdateEditModeScreen, 300)) {
-      editModeBlinkDark = !editModeBlinkDark;
-      lastUpdateEditModeScreen = millis();
-      updateEditModeDisplay();
+    // edit mode
+    if (checkTimeoutExpired(lastUpdateEditModeScreen, 300)) {  // update the screen every 300 miliseconds to show that blinking animation on selected value
+      editModeBlinkDark = !editModeBlinkDark;                  // toggle between visible or hidden selected value
+      lastUpdateEditModeScreen = millis();                     // store last time we toggled the stare for next itteration
+      updateEditModeDisplay();                                 // update screen in edit mode
     }
     // check auto exit edit mode timeout already passed
-    if (checkTimeoutExpired(lastEditModeChange, NO_ACTIVITY_DURATION)) {
+    if (checkTimeoutExpired(lastUserInteraction, NO_ACTIVITY_DURATION)) {
       exitEditMode();  // auto exit edit mode after no interaction timeout
     }
   } else {
+    // normal mode
     if (lastUpdateSeconds != currentSeconds) {
+      // update the screen only once every second to prevent flickering and do other logic only once every second
       lastUpdateSeconds = currentSeconds;
-      updateTowerClock();
-      updateMainScreen();
-      if (checkTimeoutExpired(lastEditModeChange, NO_ACTIVITY_DURATION)) {
-        mainScreenIndex = 0;  // close display
+      updateTowerClock();                                                    // check tower clock need to be rotated
+      updateMainScreen();                                                    // update seconds on main screen
+      if (checkTimeoutExpired(lastUserInteraction, NO_ACTIVITY_DURATION)) {  // when there is no activity - close the display after some timeout
+        mainScreenIndex = 0;                                                 // close display
       }
     }
   }
@@ -220,20 +222,21 @@ void updateTowerClock() {
   }
 }
 
-// Turn the tower clock if there is power supply from grid, because otherwise motor will not rotate when relay is triggered
+// Turn the tower clock, if there is power supply from grid, because otherwise motor will not rotate when relay is triggered
 void turnTheClock() {
   // check we have power supply and not running on battery - when there is no power we can not run the motor
   // check also not already in motor rotating state
   if (motorRotating == false && isGridPowerOn()) {
-    incrementTowerClock();                    // increment the tower time fist to display correct new time on lcd screen
-    motorRotating = true;                     // set variable that relay is open and motor is in rotating state
-    motorOpenStart = millis();                // store time when we start rotating the motor to stop after timeout
-    digitalWrite(SWITCH_1_PIN, HIGH);  // internate both relay between  different states
+    incrementTowerClock();             // increment the tower time first to display correct new time on OLED screen
+    motorRotating = true;              // set variable that relay is open and motor is in rotating state
+    motorOpenStart = millis();         // store time when we start rotating the motor to stop after timeout
+    digitalWrite(SWITCH_1_PIN, HIGH);  // open the relay to start rotating the motor
   }
 }
 
 // stop the motor rotation
-void stopMotor(){
+void stopMotor() {
+  // close the SSR relay to cancel the motor rotation
   digitalWrite(SWITCH_1_PIN, LOW);
 }
 
@@ -253,7 +256,7 @@ void incrementTowerClock() {
 
 // check if we need to close the relay or motor stopped rotating
 // calculate time difference instead of using the delays
-// do not trigger the relay for next 5 seconds - to not rotate too quickly when hour change on DST also motor is rotating longer then relay is open - motor is having own relay to turn off when rotated enough
+// do not trigger the relay for next 5 seconds - to not rotate too quickly when hour change on DST
 void checkCloseMotorRelay() {
   if (motorRotating && checkTimeoutExpired(motorOpenStart, MOTOR_DELAY)) {
     motorRotating = false;
@@ -304,6 +307,7 @@ void updateMainScreen() {
   display.setTextSize(1);
   display.setTextColor(WHITE);
   if (mainScreenIndex == 1) {
+    // show main screen with all valuable information
     addStatusInfo();
     display.setTextSize(1);
     display.setCursor(0, 22);
@@ -329,7 +333,7 @@ void updateMainScreen() {
       display.print(rotatingText);
     }
   } else if (mainScreenIndex == 2) {
-    // temperature details
+    // show screen with additional temperature details
     display.setCursor(0, 0);
     char temperatureText[12] = "Temperature";
     display.print(temperatureText);
@@ -351,8 +355,6 @@ void updateMainScreen() {
     display.print(getTemp(maxTemp));
     display.setCursor(0, 57);
     display.print(maxTempDate);
-  } else if (mainScreenIndex == 3) {
-
   }
   display.display();
 }
@@ -398,19 +400,6 @@ void updateEditModeDisplay() {
   char towerTime[16];
   sprintf(towerTime, "%02d:%02d ", edit_towerHour, edit_towerMinute);
   display.print(towerTime);
-  display.setCursor(0, 36);
-  char compensateText[12] = "Compensate";
-  display.print(compensateText);
-  display.setCursor(68, 36);
-  display.print(edit_compensateAfterDays);
-  display.setCursor(90, 36);
-  char daysText[2] = "d";
-  display.print(daysText);
-  display.setCursor(100, 36);
-  display.print(edit_compensateSeconds);
-  display.setCursor(112, 36);
-  char secondsText[2] = "s";
-  display.print(secondsText);
   display.setCursor(0, 54);
   char resetText[6] = "Reset";
   display.print(resetText);
@@ -418,7 +407,7 @@ void updateEditModeDisplay() {
   char confirmText[8] = "Confirm";
   display.print(confirmText);
   display.setCursor(90, 54);
-  char cancelText[8] = "Confirm";
+  char cancelText[8] = "Cancel";
   display.print(cancelText);
   // no item selected to edit  - draw line under option
   if (currentPageIndex != selectedPageIndex) {
@@ -539,21 +528,20 @@ bool checkIsSummerTime() {
 
 // user presses encoder button
 void encoderPressed() {
-  lastEditModeChange = millis();
+  lastUserInteraction = millis();
   if (editMode) {
-    if (currentPageIndex == 10) {
+    if (currentPageIndex == 8) {
       // reset
       resetFunc();
-    } else if (currentPageIndex == 11) {
+    } else if (currentPageIndex == 9) {
       // confirm
       // finishing the edit mode - update the RTC module with new settings
       myRTC.adjust(DateTime(edit_year, edit_month, edit_day, edit_hour, edit_minute, 0));
       towerHour = edit_towerHour;
       towerMinute = edit_towerMinute;
-      isSummerTime = checkIsSummerTime();  //
-      // sprintf(lastTimeSetup, "%02d.%02d.%4d %02d:%02d:%02d", currentTime.day(), currentTime.month(), currentTime.year(), currentTime.hour(), currentTime.minute(), currentTime.second());
+      isSummerTime = checkIsSummerTime();
       exitEditMode();  // move to normal operational mode
-    } else if (currentPageIndex == 12) {
+    } else if (currentPageIndex == 10) {
       // cancel
       exitEditMode();
     } else {
@@ -574,17 +562,14 @@ void encoderPressed() {
 
 // event when user is rotating the rotary encoder button
 void encoderRotated() {
-  lastEditModeChange = millis();
+  lastUserInteraction = millis();
   uint8_t change = 0;
 
   int dtState = digitalRead(DT_PIN);
-  if (dtState == HIGH)
-  {
-      change = 1; // rotated clockwise
-  }
-  else
-  {
-      change = -1; // rotated anticlockwise
+  if (dtState == HIGH) {
+    change = 1;  // rotated clockwise
+  } else {
+    change = -1;  // rotated anticlockwise
   }
   if (editMode) {  // edit mode
     if (currentPageIndex != selectedPageIndex) {
