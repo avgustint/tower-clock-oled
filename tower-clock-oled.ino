@@ -44,7 +44,6 @@ uint8_t minute;
 uint8_t second;
 uint8_t dayOfWeek;
 bool isSummerTime = false;  // are we using summer or winter time depending on DST rules
-bool doneReset = true;  // has daily reset been done
 
 // tower time - the current position of tower clock indicators
 uint8_t towerHour = 0;
@@ -60,7 +59,7 @@ unsigned long lastUserInteraction = 0;       // stored time when user done some 
 uint8_t mainScreenIndex = 1;                 // index of displayed screen in normal operation - switching between different screens
 
 // motor
-bool motorRotating = false;        // current state of the motor - true: rotating, false: motor not rotating any more
+bool motorRotating = false;  // current state of the motor - true: rotating, false: motor not rotating any more
 
 // temperature - record current, min and max temperature and time when recorded
 int8_t lastTemp;
@@ -139,9 +138,6 @@ void setup() {
   display.setTextWrap(false);
 }
 
-// reset function to have ability to reset Arduino programmatically
-void (*resetFunc)(void) = 0;
-
 // main microcontroller loop
 void loop() {
   // Update the debouncer
@@ -181,17 +177,20 @@ void loop() {
     if (lastUpdateSeconds != currentSeconds) {
       // update the screen only once every second to prevent flickering and do other logic only once every second
       lastUpdateSeconds = currentSeconds;
-      updateTowerClock(); // check tower clock need to be rotated                                                 // update seconds on main screen
-      if (mainScreenIndex != 0) {  // when there is no activity - close the display after some timeout
-        updateMainScreen(); 
-        if (checkTimeoutExpired(lastUserInteraction, NO_ACTIVITY_DURATION)){
-          mainScreenIndex = 0;  
-          updateMainScreen();  // close display
+      updateTowerClock();
+      if (mainScreenIndex != 0) {                                              // check tower clock need to be rotated
+        updateMainScreen();                                                    // update seconds on main screen
+        if (checkTimeoutExpired(lastUserInteraction, NO_ACTIVITY_DURATION)) {  // when there is no activity - close the display after some timeout
+          mainScreenIndex = 0; 
+          updateMainScreen();                                                  // close display
         }
       }
     }
   }
 }
+
+// reset function to have ability to reset Arduino programmatically
+void (*resetFunc)(void) = 0;
 
 // read the current time from the RTC module
 void getCurrentTime() {
@@ -221,16 +220,6 @@ void updateTowerClock() {
     turnTheClock();      // need to turn the tower clock
     checkTemperature();  // every minute read also RTC module temperature
   }
-  else{ // reset once a day
-    if (doneReset && currentDayMinutes==1){
-      doneReset = false;
-    }
-    if(currentDayMinutes==0 && motorRotating==false && isGridPowerOn() && doneReset==false){ 
-      // reset once a day at midnight
-      resetFunc();
-      doneReset = true;
-    }
-  }
 }
 
 // Turn the tower clock, if there is power supply from grid, because otherwise motor will not rotate when relay is triggered
@@ -248,7 +237,10 @@ void turnTheClock() {
 void stopMotor() {
   // close the SSR relay to cancel the motor rotation
   digitalWrite(SWITCH_1_PIN, LOW);
-   motorRotating = false;  
+  if (motorRotating && hour==0 && minute==0){ // after updating the hour reset arduino at midnight
+    resetFunc();
+  }
+  motorRotating = false;
 }
 
 // increment one minute of tower clock
@@ -506,11 +498,11 @@ bool isGridPowerOn() {
 bool checkIsSummerTime() {
   // earliest possible date
   // 25 26 27 28 29 30 31 - date
-  // 7  1  2  3  4  5  6  - day of week index
+  // 0  1  2  3  4  5  6  - day of week index
 
   // latest possible date
   // 25 26 27 28 29 30 31
-  // 1  2  3  4  5  6  7
+  // 1  2  3  4  5  6  0
 
   if (month < 3 || month > 10)
     return false;
@@ -660,6 +652,9 @@ void exitEditMode() {
 // get day of week names from index 1-Starting on Monday and 7 as Sunday
 String getWeekDayName(uint8_t dayIndex) {
   switch (dayIndex) {
+    case 0:
+      return F("Sun");
+      break;
     case 1:
       return F("Mon");
       break;
@@ -677,9 +672,6 @@ String getWeekDayName(uint8_t dayIndex) {
       break;
     case 6:
       return F("Sat");
-      break;
-    case 7:
-      return F("Sun");
       break;
     // Add more cases for other days
     default:
