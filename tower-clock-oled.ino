@@ -33,7 +33,6 @@
 #define SWITCH_1_PIN 14     // define pin to trigger the Solid State Relay SSR
 #define SWITCH_2_PIN 15     // define pin to read motor encoder state
 
-#define MOTOR_DELAY 5000            // motor delay between next time changing state
 #define NO_ACTIVITY_DURATION 60000  // the duration of waiting time in edit mode after which we auto close edit mode without changes or turning display into sleep
 
 // system time data
@@ -45,6 +44,7 @@ uint8_t minute;
 uint8_t second;
 uint8_t dayOfWeek;
 bool isSummerTime = false;  // are we using summer or winter time depending on DST rules
+bool doneReset = true;  // has daily reset been done
 
 // tower time - the current position of tower clock indicators
 uint8_t towerHour = 0;
@@ -61,7 +61,6 @@ uint8_t mainScreenIndex = 1;                 // index of displayed screen in nor
 
 // motor
 bool motorRotating = false;        // current state of the motor - true: rotating, false: motor not rotating any more
-unsigned long motorOpenStart = 0;  // when motor started to rotate
 
 // temperature - record current, min and max temperature and time when recorded
 int8_t lastTemp;
@@ -140,6 +139,9 @@ void setup() {
   display.setTextWrap(false);
 }
 
+// reset function to have ability to reset Arduino programmatically
+void (*resetFunc)(void) = 0;
+
 // main microcontroller loop
 void loop() {
   // Update the debouncer
@@ -179,18 +181,17 @@ void loop() {
     if (lastUpdateSeconds != currentSeconds) {
       // update the screen only once every second to prevent flickering and do other logic only once every second
       lastUpdateSeconds = currentSeconds;
-      updateTowerClock();                                                    // check tower clock need to be rotated
-      updateMainScreen();                                                    // update seconds on main screen
-      if (checkTimeoutExpired(lastUserInteraction, NO_ACTIVITY_DURATION)) {  // when there is no activity - close the display after some timeout
-        mainScreenIndex = 0;                                                 // close display
+      updateTowerClock(); // check tower clock need to be rotated                                                 // update seconds on main screen
+      if (mainScreenIndex != 0) {  // when there is no activity - close the display after some timeout
+        updateMainScreen(); 
+        if (checkTimeoutExpired(lastUserInteraction, NO_ACTIVITY_DURATION)){
+          mainScreenIndex = 0;  
+          updateMainScreen();  // close display
+        }
       }
     }
   }
-  checkCloseMotorRelay();  // check rotating delay expired
 }
-
-// reset function to have ability to reset Arduino programmatically
-void (*resetFunc)(void) = 0;
 
 // read the current time from the RTC module
 void getCurrentTime() {
@@ -220,6 +221,16 @@ void updateTowerClock() {
     turnTheClock();      // need to turn the tower clock
     checkTemperature();  // every minute read also RTC module temperature
   }
+  else{ // reset once a day
+    if (doneReset && currentDayMinutes==1){
+      doneReset = false;
+    }
+    if(currentDayMinutes==0 && motorRotating==false && isGridPowerOn() && doneReset==false){ 
+      // reset once a day at midnight
+      resetFunc();
+      doneReset = true;
+    }
+  }
 }
 
 // Turn the tower clock, if there is power supply from grid, because otherwise motor will not rotate when relay is triggered
@@ -229,7 +240,6 @@ void turnTheClock() {
   if (motorRotating == false && isGridPowerOn()) {
     incrementTowerClock();             // increment the tower time first to display correct new time on OLED screen
     motorRotating = true;              // set variable that relay is open and motor is in rotating state
-    motorOpenStart = millis();         // store time when we start rotating the motor to stop after timeout
     digitalWrite(SWITCH_1_PIN, HIGH);  // open the relay to start rotating the motor
   }
 }
@@ -238,6 +248,7 @@ void turnTheClock() {
 void stopMotor() {
   // close the SSR relay to cancel the motor rotation
   digitalWrite(SWITCH_1_PIN, LOW);
+   motorRotating = false;  
 }
 
 // increment one minute of tower clock
@@ -251,15 +262,6 @@ void incrementTowerClock() {
     if (towerHour >= 24) {
       towerHour = 0;
     }
-  }
-}
-
-// check if we need to close the relay or motor stopped rotating
-// calculate time difference instead of using the delays
-// do not trigger the relay for next 5 seconds - to not rotate too quickly when hour change on DST
-void checkCloseMotorRelay() {
-  if (motorRotating && checkTimeoutExpired(motorOpenStart, MOTOR_DELAY)) {
-    motorRotating = false;
   }
 }
 
