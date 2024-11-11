@@ -512,10 +512,24 @@ bool checkIsSummerTime() {
   // calculate previous sunday day
   uint8_t previousSunday = day - dayOfWeek % 7;  // use different indexes the app 0 - Sunday, 1-Monday,..., 6-Saturday
 
-  if (month == 3)
-    return previousSunday >= 25;
-  if (month == 10)
-    return previousSunday < 25;
+  if (month == 3){
+    if (dayOfWeek>0){
+      return previousSunday >= 25;
+    }
+    else{ // if is Sunday
+      return previousSunday >= 25 && hour>=3;
+    }
+  }
+    
+  if (month == 10){
+    if (dayOfWeek>0){
+      return previousSunday < 25;
+    }
+    else{ // if Sunday
+      return previousSunday < 25 || hour<2;
+    }
+  }
+    
 
   return false;  // this line never gonna happened
 }
