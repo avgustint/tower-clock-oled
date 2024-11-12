@@ -56,17 +56,9 @@ DateTime currentTime;                        // list read time from RTC
 bool editMode = false;                       // are we in edit mode
 bool editModeBlinkDark = false;              // toggle blinking in edit mode when value selected
 unsigned long lastUserInteraction = 0;       // stored time when user done some interaction in edit mode - auto cancel edit mode after timeout
-uint8_t mainScreenIndex = 1;                 // index of displayed screen in normal operation - switching between different screens
 
 // motor
 bool motorRotating = false;  // current state of the motor - true: rotating, false: motor not rotating any more
-
-// temperature - record current, min and max temperature and time when recorded
-int8_t lastTemp;
-int8_t minTemp = 120;
-int8_t maxTemp = -120;
-char minTempDate[24];
-char maxTempDate[24];
 
 // setup mode variables
 uint8_t currentPageIndex;
@@ -127,7 +119,6 @@ void setup() {
   debouncerMotor.attach(SWITCH_2_PIN);  // Attach to the motor encoder clock pin
   debouncerMotor.interval(20);          // Set debounce interval (in milliseconds)
   getCurrentTime();                     // read current time from RTC module
-  checkTemperature();                   // read current temerature at initialization
   isSummerTime = checkIsSummerTime();   // check if currently is Summer or Winter time depending to DST rules
   // initialize tower clock on same as current time  - will be set correctly in edit mode - here just to prevent rotating the tower clock
   towerHour = hour;
@@ -178,13 +169,7 @@ void loop() {
       // update the screen only once every second to prevent flickering and do other logic only once every second
       lastUpdateSeconds = currentSeconds;
       updateTowerClock();
-      if (mainScreenIndex != 0) {                                              // check tower clock need to be rotated
-        updateMainScreen();                                                    // update seconds on main screen
-        if (checkTimeoutExpired(lastUserInteraction, NO_ACTIVITY_DURATION)) {  // when there is no activity - close the display after some timeout
-          mainScreenIndex = 0; 
-          updateMainScreen();                                                  // close display
-        }
-      }
+      updateMainScreen();
     }
   }
 }
@@ -214,11 +199,10 @@ void updateTowerClock() {
   uint16_t currentDayMinutes = getSystemMinutes();             // using system time - get number of minutes in day for 12h format
   uint16_t towerDayMinutes = getTowerMinutes();                // using tower time - get number of minutes in day  of tower time for 12h format
   uint16_t minutesDiff = currentDayMinutes - towerDayMinutes;  // calculate minutes diff between controller time and tower time
-  // minutesDiff > 0 curent time is ahead of tower time - try to catch up, but only if current time is less then 10 hours ahead, otherwise wait
+  // minutesDiff > 0 curent time is ahead of tower time - try to catch up, but only if current time is less then 10 hours ahead, otherwise wait whatever it takes
   uint16_t tenHoursDiff = 10 * 60;
   if (minutesDiff > 0 && minutesDiff < tenHoursDiff) {
-    turnTheClock();      // need to turn the tower clock
-    checkTemperature();  // every minute read also RTC module temperature
+    turnTheClock();  // need to turn the tower clock
   }
 }
 
@@ -237,7 +221,7 @@ void turnTheClock() {
 void stopMotor() {
   // close the SSR relay to cancel the motor rotation
   digitalWrite(SWITCH_1_PIN, LOW);
-  if (motorRotating && hour==0 && minute==0){ // after updating the hour reset arduino at midnight
+  if (motorRotating && hour == 0 && minute == 0) {  // after updating the hour reset arduino at midnight
     resetFunc();
   }
   motorRotating = false;
@@ -254,22 +238,6 @@ void incrementTowerClock() {
     if (towerHour >= 24) {
       towerHour = 0;
     }
-  }
-}
-
-// read the current temperature from the RTC module - the precision of the temperature sensor is ± 3°C
-void checkTemperature() {
-  // read current temperature
-  lastTemp = myRTC.getTemperature();
-  // check current temperature exceeds max recorded temp
-  if (lastTemp > maxTemp) {
-    maxTemp = lastTemp;
-    sprintf(maxTempDate, "%02d.%02d.%4d %02d:%02d", currentTime.day(), currentTime.month(), currentTime.year(), currentTime.hour(), currentTime.minute());
-  }
-  // check current temp is lower them min recorded temp
-  if (lastTemp < minTemp) {
-    minTemp = lastTemp;
-    sprintf(minTempDate, "%02d.%02d.%4d %02d:%02d", currentTime.day(), currentTime.month(), currentTime.year(), currentTime.hour(), currentTime.minute());
   }
 }
 
@@ -300,55 +268,31 @@ void updateMainScreen() {
   display.fillRect(0, 0, 128, 64, SSD1306_BLACK);
   display.setTextSize(1);
   display.setTextColor(WHITE);
-  if (mainScreenIndex == 1) {
-    // show main screen with all valuable information
-    addStatusInfo();
-    display.setTextSize(1);
-    display.setCursor(0, 22);
-    display.setTextColor(WHITE);
-    char currentDate[16];
-    sprintf(currentDate, "%02d.%02d.%4d", day, month, year);  // add leading zeros to the day and month
-    display.print(currentDate);
-    display.setCursor(70, 22);
-    display.print(getWeekDayName(dayOfWeek));
-    char currentTime[16];
-    sprintf(currentTime, "%02d:%02d:%02d ", hour, minute, second);
-    display.setTextSize(2);
-    display.setCursor(0, 34);
-    display.print(currentTime);
-    display.setTextSize(1);
-    display.setCursor(0, 56);
-    char towerTime[8];
-    sprintf(towerTime, "%02d:%02d ", towerHour, towerMinute);
-    display.print(towerTime);
-    if (motorRotating) {
-      char rotatingText[10] = "Rotating";
-      display.setCursor(50, 56);
-      display.print(rotatingText);
-    }
-  } else if (mainScreenIndex == 2) {
-    // show screen with additional temperature details
-    display.setCursor(0, 0);
-    char temperatureText[12] = "Temperature";
-    display.print(temperatureText);
-    display.setTextSize(2);
-    display.setCursor(0, 10);
-    display.print(getTemp(lastTemp));
-    display.setTextSize(1);
-    display.setCursor(0, 27);
-    char minText[6] = "Min:";
-    display.print(minText);
-    display.setCursor(66, 27);
-    display.print(getTemp(minTemp));
-    display.setCursor(0, 37);
-    display.print(minTempDate);
-    display.setCursor(0, 47);
-    char maxText[6] = "Max:";
-    display.print(maxText);
-    display.setCursor(66, 47);
-    display.print(getTemp(maxTemp));
-    display.setCursor(0, 57);
-    display.print(maxTempDate);
+
+  // show main screen with all valuable information
+  addStatusInfo();
+  display.setTextSize(1);
+  display.setCursor(0, 22);
+  display.setTextColor(WHITE);
+  char currentDate[16];
+  sprintf(currentDate, "%02d.%02d.%4d", day, month, year);  // add leading zeros to the day and month
+  display.print(currentDate);
+  display.setCursor(70, 22);
+  display.print(getWeekDayName(dayOfWeek));
+  char currentTime[16];
+  sprintf(currentTime, "%02d:%02d:%02d ", hour, minute, second);
+  display.setTextSize(2);
+  display.setCursor(0, 34);
+  display.print(currentTime);
+  display.setTextSize(1);
+  display.setCursor(0, 56);
+  char towerTime[8];
+  sprintf(towerTime, "%02d:%02d ", towerHour, towerMinute);
+  display.print(towerTime);
+  if (motorRotating) {
+    char rotatingText[10] = "Rotating";
+    display.setCursor(50, 56);
+    display.print(rotatingText);
   }
   display.display();
 }
@@ -361,9 +305,6 @@ void addStatusInfo() {
   char powerText[12];
   sprintf(powerText, "%s", isGridPowerOn() ? "Power: OK" : "Power: Fail");
   display.print(powerText);
-  // display temperature
-  display.setCursor(80, 0);
-  display.print(getTemp(lastTemp));
   // display Summer/Winter Time
   display.setCursor(0, 10);
   char seasonText[8];
@@ -484,11 +425,6 @@ void updateEditModeDisplay() {
   display.display();
 }
 
-// format temperature with degrees symbol
-String getTemp(int8_t temp) {
-  return String(temp) + " " + (char)247 + F("C");
-}
-
 // function to check if we have power supply - reading pin value used to detect power supply
 bool isGridPowerOn() {
   return digitalRead(POWER_CHECK_PIN);
@@ -512,24 +448,22 @@ bool checkIsSummerTime() {
   // calculate previous sunday day
   uint8_t previousSunday = day - dayOfWeek % 7;  // use different indexes the app 0 - Sunday, 1-Monday,..., 6-Saturday
 
-  if (month == 3){
-    if (dayOfWeek>0){
+  if (month == 3) {
+    if (dayOfWeek > 0) {
       return previousSunday >= 25;
-    }
-    else{ // if is Sunday
-      return previousSunday >= 25 && hour>=3;
+    } else {  // if is Sunday
+      return previousSunday >= 25 && hour >= 3;
     }
   }
-    
-  if (month == 10){
-    if (dayOfWeek>0){
+
+  if (month == 10) {
+    if (dayOfWeek > 0) {
       return previousSunday < 25;
-    }
-    else{ // if Sunday
-      return previousSunday < 25 || hour<2;
+    } else {  // if Sunday
+      return previousSunday < 25 || hour < 2;
     }
   }
-    
+
 
   return false;  // this line never gonna happened
 }
@@ -623,10 +557,6 @@ void encoderRotated() {
       }
     }
     updateEditModeDisplay();
-  } else {
-    // rotate between main screens
-    mainScreenIndex = mainScreenIndex + change;
-    mainScreenIndex = checkRange(mainScreenIndex, 1, 2);
   }
 }
 
@@ -660,7 +590,6 @@ void exitEditMode() {
   currentPageIndex = 1;
   selectedPageIndex = 0;
   editMode = false;
-  mainScreenIndex = 1;
 }
 
 // get day of week names from index 1-Starting on Monday and 7 as Sunday
