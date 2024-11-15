@@ -59,6 +59,7 @@ unsigned long lastUserInteraction = 0;       // stored time when user done some 
 
 // motor
 bool motorRotating = false;  // current state of the motor - true: rotating, false: motor not rotating any more
+bool switchOpen = false; 
 
 // setup mode variables
 uint8_t currentPageIndex;
@@ -148,7 +149,9 @@ void loop() {
 
   // event when motor encoder switch triggered
   if (debouncerMotor.changed()) {
+    switchOpen = !switchOpen;
     stopMotor();
+    updateMainScreen();
   }
 
   getCurrentTime();  // read current time from RTC module
@@ -198,10 +201,14 @@ void getCurrentTime() {
 void updateTowerClock() {
   uint16_t currentDayMinutes = getSystemMinutes();             // using system time - get number of minutes in day for 12h format
   uint16_t towerDayMinutes = getTowerMinutes();                // using tower time - get number of minutes in day  of tower time for 12h format
-  uint16_t minutesDiff = currentDayMinutes - towerDayMinutes;  // calculate minutes diff between controller time and tower time
+  int minutesDiff = currentDayMinutes - towerDayMinutes;  // calculate minutes diff between controller time and tower time
   // minutesDiff > 0 curent time is ahead of tower time - try to catch up, but only if current time is less then 10 hours ahead, otherwise wait whatever it takes
   uint16_t tenHoursDiff = 10 * 60;
   if (minutesDiff > 0 && minutesDiff < tenHoursDiff) {
+    turnTheClock();  // need to turn the tower clock
+  }
+  else if (minutesDiff < 0 && minutesDiff < -120){
+    // tower clock in more then 2 hours ahead - turn the clock, otherwise wait to catch up
     turnTheClock();  // need to turn the tower clock
   }
 }
@@ -310,6 +317,10 @@ void addStatusInfo() {
   char seasonText[8];
   sprintf(seasonText, "%s", isSummerTime ? "Summer" : "Winter");
   display.print(seasonText);
+  display.setCursor(50, 10);
+  char encoderText[15];
+  sprintf(encoderText, "%s", switchOpen ? "Switch: Low" : "Switch: High");
+  display.print(encoderText);
 }
 
 // show screen in edit mode
