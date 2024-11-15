@@ -33,7 +33,7 @@
 #define SWITCH_1_PIN 14     // define pin to trigger the Solid State Relay SSR
 #define SWITCH_2_PIN 15     // define pin to read motor encoder state
 
-#define NO_ACTIVITY_DURATION 60000  // the duration of waiting time in edit mode after which we auto close edit mode without changes or turning display into sleep
+#define NO_ACTIVITY_DURATION 120000  // the duration of waiting time in edit mode after which we auto close edit mode without changes or turning display into sleep
 
 // system time data
 uint16_t year;
@@ -59,7 +59,7 @@ unsigned long lastUserInteraction = 0;       // stored time when user done some 
 
 // motor
 bool motorRotating = false;  // current state of the motor - true: rotating, false: motor not rotating any more
-bool switchOpen = false; 
+bool switchOpen = false;
 
 // setup mode variables
 uint8_t currentPageIndex;
@@ -199,15 +199,14 @@ void getCurrentTime() {
 
 // update the tower clock if minute incremented
 void updateTowerClock() {
-  uint16_t currentDayMinutes = getSystemMinutes();             // using system time - get number of minutes in day for 12h format
-  uint16_t towerDayMinutes = getTowerMinutes();                // using tower time - get number of minutes in day  of tower time for 12h format
+  uint16_t currentDayMinutes = getSystemMinutes();        // using system time - get number of minutes in day for 12h format
+  uint16_t towerDayMinutes = getTowerMinutes();           // using tower time - get number of minutes in day  of tower time for 12h format
   int minutesDiff = currentDayMinutes - towerDayMinutes;  // calculate minutes diff between controller time and tower time
   // minutesDiff > 0 curent time is ahead of tower time - try to catch up, but only if current time is less then 10 hours ahead, otherwise wait whatever it takes
   uint16_t tenHoursDiff = 10 * 60;
   if (minutesDiff > 0 && minutesDiff < tenHoursDiff) {
     turnTheClock();  // need to turn the tower clock
-  }
-  else if (minutesDiff < 0 && minutesDiff < -120){
+  } else if (minutesDiff < 0 && minutesDiff < -120) {
     // tower clock in more then 2 hours ahead - turn the clock, otherwise wait to catch up
     turnTheClock();  // need to turn the tower clock
   }
@@ -273,33 +272,35 @@ uint16_t getTowerMinutes() {
 // display main screen info in normal operation - switch between different screens
 void updateMainScreen() {
   display.fillRect(0, 0, 128, 64, SSD1306_BLACK);
-  display.setTextSize(1);
-  display.setTextColor(WHITE);
+  if (!checkTimeoutExpired(lastUserInteraction, NO_ACTIVITY_DURATION)) {  // when there is no activity - close the display after some timeout
+    display.setTextSize(1);
+    display.setTextColor(WHITE);
 
-  // show main screen with all valuable information
-  addStatusInfo();
-  display.setTextSize(1);
-  display.setCursor(0, 22);
-  display.setTextColor(WHITE);
-  char currentDate[16];
-  sprintf(currentDate, "%02d.%02d.%4d", day, month, year);  // add leading zeros to the day and month
-  display.print(currentDate);
-  display.setCursor(70, 22);
-  display.print(getWeekDayName(dayOfWeek));
-  char currentTime[16];
-  sprintf(currentTime, "%02d:%02d:%02d ", hour, minute, second);
-  display.setTextSize(2);
-  display.setCursor(0, 34);
-  display.print(currentTime);
-  display.setTextSize(1);
-  display.setCursor(0, 56);
-  char towerTime[8];
-  sprintf(towerTime, "%02d:%02d ", towerHour, towerMinute);
-  display.print(towerTime);
-  if (motorRotating) {
-    char rotatingText[10] = "Rotating";
-    display.setCursor(50, 56);
-    display.print(rotatingText);
+    // show main screen with all valuable information
+    addStatusInfo();
+    display.setTextSize(1);
+    display.setCursor(0, 22);
+    display.setTextColor(WHITE);
+    char currentDate[16];
+    sprintf(currentDate, "%02d.%02d.%4d", day, month, year);  // add leading zeros to the day and month
+    display.print(currentDate);
+    display.setCursor(70, 22);
+    display.print(getWeekDayName(dayOfWeek));
+    char currentTime[16];
+    sprintf(currentTime, "%02d:%02d:%02d ", hour, minute, second);
+    display.setTextSize(2);
+    display.setCursor(0, 34);
+    display.print(currentTime);
+    display.setTextSize(1);
+    display.setCursor(0, 56);
+    char towerTime[8];
+    sprintf(towerTime, "%02d:%02d ", towerHour, towerMinute);
+    display.print(towerTime);
+    if (motorRotating) {
+      char rotatingText[10] = "Rotating";
+      display.setCursor(50, 56);
+      display.print(rotatingText);
+    }
   }
   display.display();
 }
