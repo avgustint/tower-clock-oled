@@ -640,7 +640,7 @@ String getWeekDayName(uint8_t dayIndex) {
 void checkDaylightSavingChanges() {
   // check last Sunday in March or October and update the time accordingly
   // earliest possible date in 25. March or October and latest 31. March or October
-  if (dayOfWeek == 7 && day >= 25) {
+  if (dayOfWeek == 0 && day >= 25) {
     if (month == 3 && hour == 2 && minute == 0) {
       // moving hour forward on 02:00 to 03:00
       hour = 3;
